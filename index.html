@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Avatar Slicer & Bot Generator</title>
+  <meta name="description" content="Cut any image into multiple bot avatars, or generate procedural AI bot avatar sheets on the fly. Free, client-side, export as ZIP or individual PNGs.">
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- JSZip for ZIP download -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#ecfeff',
+              400: '#22d3ee',
+              500: '#06b6d4',
+              600: '#0891b2',
+              900: '#164e63'
+            },
+            accent: {
+              purple: '#a855f7',
+              pink: '#ec4899',
+              emerald: '#10b981'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 15px rgba(6, 182, 212, 0.4); }
+      50% { box-shadow: 0 0 30px rgba(6, 182, 212, 0.8); }
+    }
+    .glow-cyan {
+      animation: pulseGlow 4s infinite ease-in-out;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-cyan-500 selection:text-black">
+
+  <!-- Top Navigation Header -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-fuchsia-500 flex items-center justify-center text-white shadow-lg shadow-cyan-500/30">
+          <i class="fa-solid fa-shapes text-xl"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold bg-gradient-to-r from-cyan-400 via-sky-300 to-fuchsia-400 bg-clip-text text-transparent">
+            Avatar Slicer & Bot Generator
+          </h1>
+          <p class="text-xs text-slate-400">Slice sprite sheets into bot avatars or generate fresh procedural bots</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 text-xs">
+        <a href="https://github.com/rifaterdemsahin/avatars" target="_blank" rel="noopener"
+           class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+          <i class="fa-brands fa-github text-sm"></i>
+          <span>GitHub</span>
+        </a>
+        <a href="https://rifaterdemsahin.github.io/avatars/" target="_blank" rel="noopener"
+           class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-cyan-950 text-cyan-300 border border-cyan-800/60 hover:bg-cyan-900 transition">
+          <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+          <span>Live Pages</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- Top Action Banner: Generation & Upload Quick Bar -->
+    <div class="bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        
+        <!-- Generator Controls -->
+        <div class="flex flex-wrap items-center gap-2.5">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5 mr-1">
+            <i class="fa-solid fa-wand-magic-sparkles text-cyan-400"></i> Bot Generator:
+          </span>
+          <button id="btnLoadSample"
+                  class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-white font-medium text-xs flex items-center gap-2 shadow-md shadow-fuchsia-600/20 active:scale-95 transition">
+            <i class="fa-solid fa-shapes"></i>
+            <span>Load Bot Avatars (4×4)</span>
+          </button>
+          <button id="btnLoadCyberSample"
+                  class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium text-xs flex items-center gap-2 border border-slate-700 active:scale-95 transition">
+            <i class="fa-solid fa-images text-cyan-400"></i>
+            <span>Load Cyber Bots (3×3)</span>
+          </button>
+          <button id="btnGenerateBots"
+                  class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-medium text-xs flex items-center gap-2 shadow-md shadow-cyan-600/20 active:scale-95 transition">
+            <i class="fa-solid fa-robot"></i>
+            <span>Generate New Grid</span>
+          </button>
+        </div>
+
+        <!-- Upload Controls -->
+        <div class="flex flex-wrap items-center gap-2.5">
+          <label for="fileInput"
+                 class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 font-medium text-xs flex items-center gap-2 border border-cyan-500/30 cursor-pointer active:scale-95 transition">
+            <i class="fa-solid fa-cloud-arrow-up text-cyan-400"></i>
+            <span>Upload Your Image</span>
+            <input type="file" id="fileInput" accept="image/*" class="hidden">
+          </label>
+          <button id="btnPasteClipboard" title="Paste image from clipboard (or press Ctrl+V / Cmd+V)"
+                  class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs flex items-center gap-2 border border-slate-700 active:scale-95 transition">
+            <i class="fa-regular fa-clipboard"></i>
+            <span>Paste (Ctrl+V)</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Workspace Grid: Slicer Settings (Left) & Canvas Inspector (Right) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      
+      <!-- Slicer Settings & Configuration (4 Cols) -->
+      <aside class="lg:col-span-4 bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-5 shadow-xl">
+        
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+            <i class="fa-solid fa-sliders text-cyan-400"></i>
+            <span>Cutting Settings</span>
+          </h2>
+          <span id="sheetDimensions" class="text-xs font-mono text-cyan-400/90 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/40">
+            0 × 0 px
+          </span>
+        </div>
+
+        <!-- Quick Presets -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-2">Grid Presets</label>
+          <div class="grid grid-cols-4 gap-2">
+            <button class="preset-btn py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 font-medium active:scale-95 transition" data-cols="2" data-rows="2">2×2 (4)</button>
+            <button class="preset-btn py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 font-medium active:scale-95 transition" data-cols="3" data-rows="3">3×3 (9)</button>
+            <button class="preset-btn py-1.5 rounded-lg bg-cyan-950/80 hover:bg-cyan-900 text-xs text-cyan-300 border border-cyan-700/60 font-semibold active:scale-95 transition" data-cols="4" data-rows="4">4×4 (16)</button>
+            <button class="preset-btn py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 font-medium active:scale-95 transition" data-cols="5" data-rows="5">5×5 (25)</button>
+          </div>
+        </div>
+
+        <!-- Columns & Rows -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <div class="flex justify-between items-center mb-1">
+              <label for="inputCols" class="text-xs text-slate-400 font-medium">Columns (X)</label>
+              <span id="valCols" class="text-xs font-bold text-cyan-400">4</span>
+            </div>
+            <input type="range" id="inputCols" min="1" max="10" value="4" class="w-full accent-cyan-500 cursor-pointer">
+          </div>
+
+          <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <div class="flex justify-between items-center mb-1">
+              <label for="inputRows" class="text-xs text-slate-400 font-medium">Rows (Y)</label>
+              <span id="valRows" class="text-xs font-bold text-cyan-400">4</span>
+            </div>
+            <input type="range" id="inputRows" min="1" max="10" value="4" class="w-full accent-cyan-500 cursor-pointer">
+          </div>
+        </div>
+
+        <!-- Spacing & Margins -->
+        <div class="space-y-3 bg-slate-950/40 border border-slate-800/80 rounded-xl p-3.5">
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label for="inputMargin" class="text-xs text-slate-400">Outer Margin (px)</label>
+              <span id="valMargin" class="text-xs font-mono text-slate-300">0 px</span>
+            </div>
+            <input type="range" id="inputMargin" min="0" max="100" value="0" class="w-full accent-slate-400 cursor-pointer">
+          </div>
+
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label for="inputGutter" class="text-xs text-slate-400">Gutter / Gap between items (px)</label>
+              <span id="valGutter" class="text-xs font-mono text-slate-300">0 px</span>
+            </div>
+            <input type="range" id="inputGutter" min="0" max="60" value="0" class="w-full accent-slate-400 cursor-pointer">
+          </div>
+        </div>
+
+        <!-- Bot Codenames & Naming Prefix -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5">Avatar Naming Format</label>
+          <div class="grid grid-cols-2 gap-2 mb-2">
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer text-xs text-slate-300">
+              <input type="radio" name="namingScheme" value="codenames" checked class="accent-cyan-500">
+              <span>AI Codenames</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-slate-950 border border-slate-800 cursor-pointer text-xs text-slate-300">
+              <input type="radio" name="namingScheme" value="prefix" class="accent-cyan-500">
+              <span>Custom Prefix</span>
+            </label>
+          </div>
+          <div id="prefixInputWrapper" class="hidden">
+            <input type="text" id="inputPrefix" value="bot-avatar" placeholder="e.g. discord-bot"
+                   class="w-full px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-cyan-500">
+          </div>
+        </div>
+
+        <!-- Export Resolution & Format -->
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="selectResolution" class="block text-xs font-medium text-slate-400 mb-1">Resolution</label>
+            <select id="selectResolution" class="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-cyan-500">
+              <option value="original" selected>Original Tile Size</option>
+              <option value="512">512 × 512 px</option>
+              <option value="256">256 × 256 px</option>
+              <option value="128">128 × 128 px</option>
+              <option value="64">64 × 64 px</option>
+            </select>
+          </div>
+          <div>
+            <label for="selectFormat" class="block text-xs font-medium text-slate-400 mb-1">Format</label>
+            <select id="selectFormat" class="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-cyan-500">
+              <option value="image/png" selected>PNG (Lossless)</option>
+              <option value="image/webp">WebP</option>
+              <option value="image/jpeg">JPEG (High Q)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Bulk Action Buttons -->
+        <div class="pt-2 space-y-2">
+          <button id="btnDownloadZip"
+                  class="w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 via-sky-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/20 active:scale-98 transition">
+            <i class="fa-solid fa-file-zipper text-sm"></i>
+            <span>Download All as ZIP</span>
+          </button>
+
+          <button id="btnSliceNow"
+                  class="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs flex items-center justify-center gap-2 border border-slate-700 active:scale-98 transition">
+            <i class="fa-solid fa-scissors text-cyan-400"></i>
+            <span>Re-slice & Refresh Gallery</span>
+          </button>
+        </div>
+
+      </aside>
+
+      <!-- Canvas Interactive Slicer View (8 Cols) -->
+      <section class="lg:col-span-8 space-y-6">
+        
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl">
+          <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div class="flex items-center gap-2">
+              <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                <i class="fa-solid fa-crop-simple text-cyan-400"></i>
+                <span>Image Slicer Preview</span>
+              </h2>
+              <span id="tileCountBadge" class="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700">
+                9 Avatars
+              </span>
+            </div>
+
+            <!-- View Options -->
+            <div class="flex items-center gap-2 text-xs">
+              <label class="flex items-center gap-1.5 cursor-pointer text-slate-400 hover:text-slate-200">
+                <input type="checkbox" id="chkShowGrid" checked class="accent-cyan-500">
+                <span>Show Cut Grid</span>
+              </label>
+              <span class="text-slate-700">|</span>
+              <label class="flex items-center gap-1.5 cursor-pointer text-slate-400 hover:text-slate-200">
+                <input type="checkbox" id="chkShowLabels" checked class="accent-cyan-500">
+                <span>Show Labels</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Canvas Workspace Wrapper -->
+          <div id="dropZone"
+               class="relative rounded-xl border-2 border-dashed border-slate-800 bg-slate-950 flex flex-col items-center justify-center min-h-[380px] p-2 overflow-hidden transition group">
+            
+            <!-- Hidden original canvas -->
+            <canvas id="sourceCanvas" class="hidden"></canvas>
+            
+            <!-- Display canvas with grid overlays -->
+            <div class="relative max-w-full overflow-auto flex items-center justify-center">
+              <canvas id="previewCanvas" class="max-h-[520px] max-w-full rounded shadow-2xl object-contain cursor-crosshair"></canvas>
+            </div>
+
+            <!-- Overlay Drag & Drop prompt (hidden when image loaded) -->
+            <div id="dropPrompt" class="hidden absolute inset-0 bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+              <div class="w-16 h-16 rounded-2xl bg-cyan-950 border border-cyan-800/80 flex items-center justify-center text-cyan-400 text-2xl mb-3 shadow-lg">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+              </div>
+              <h3 class="text-base font-bold text-slate-200 mb-1">Drag and drop your avatar sheet here</h3>
+              <p class="text-xs text-slate-400 mb-4 max-w-sm">Supports PNG, JPG, WebP, or SVG. Or click below to load our sample 3x3 bot avatar sheet.</p>
+              <button onclick="document.getElementById('btnLoadSample').click()"
+                      class="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 rounded-xl text-xs font-semibold">
+                Load Sample Bot Sheet
+              </button>
+            </div>
+
+          </div>
+
+          <div class="flex items-center justify-between text-xs text-slate-400 mt-3 pt-3 border-t border-slate-800/60">
+            <span class="flex items-center gap-1.5">
+              <i class="fa-solid fa-circle-info text-cyan-400"></i>
+              <span>Hover over any tile to preview its coordinates. Adjust margins & gutters in the settings.</span>
+            </span>
+            <span id="hoverInfo" class="font-mono text-cyan-300 font-medium">Ready</span>
+          </div>
+        </div>
+
+        <!-- Cut Avatars Gallery (Output) -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+            <div>
+              <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+                <i class="fa-solid fa-shapes text-fuchsia-400"></i>
+                <span>Generated Bot Avatars</span>
+              </h2>
+              <p class="text-xs text-slate-400">Preview as square or chat circle, download individually, or copy to clipboard</p>
+            </div>
+
+            <!-- Preview Shape Selector -->
+            <div class="flex items-center gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+              <button id="btnShapeSquare" class="px-2.5 py-1 rounded-lg bg-slate-800 text-cyan-300 font-medium transition">
+                <i class="fa-regular fa-square mr-1"></i> Square
+              </button>
+              <button id="btnShapeCircle" class="px-2.5 py-1 rounded-lg text-slate-400 hover:text-slate-200 font-medium transition">
+                <i class="fa-regular fa-circle mr-1"></i> Circle (Chat)
+              </button>
+            </div>
+          </div>
+
+          <!-- Cards Grid Container -->
+          <div id="avatarGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 gap-4">
+            <!-- Dynamic avatar cards inserted by JS -->
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+
+    <!-- Features & Bot Slicer Instructions Info Section -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5 pt-4">
+      
+      <div class="p-4 bg-slate-900/60 border border-slate-800 rounded-xl space-y-2">
+        <div class="flex items-center gap-2.5 text-cyan-400 text-sm font-bold">
+          <i class="fa-solid fa-robot"></i>
+          <span>Procedural Bot Generator</span>
+        </div>
+        <p class="text-xs text-slate-400 leading-relaxed">
+          Generate infinite combinations of cybernetic avatars with distinctive antennas, eyes, visors, reactor cores, and high-tech color palettes.
+        </p>
+      </div>
+
+      <div class="p-4 bg-slate-900/60 border border-slate-800 rounded-xl space-y-2">
+        <div class="flex items-center gap-2.5 text-fuchsia-400 text-sm font-bold">
+          <i class="fa-solid fa-crop-simple"></i>
+          <span>Precision Grid Slicing</span>
+        </div>
+        <p class="text-xs text-slate-400 leading-relaxed">
+          Easily split spritesheets, Midjourney grids, or multi-avatar exports into single icons with customizable padding, gutters, and aspect ratios.
+        </p>
+      </div>
+
+      <div class="p-4 bg-slate-900/60 border border-slate-800 rounded-xl space-y-2">
+        <div class="flex items-center gap-2.5 text-emerald-400 text-sm font-bold">
+          <i class="fa-solid fa-file-zipper"></i>
+          <span>Instant ZIP & Clipboard Export</span>
+        </div>
+        <p class="text-xs text-slate-400 leading-relaxed">
+          100% private, client-side processing in your browser. Download every cut avatar packed into a clean ZIP archive with one click.
+        </p>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed bottom-6 right-6 z-50 bg-slate-900 border border-cyan-500/50 text-cyan-300 px-4 py-2.5 rounded-xl shadow-2xl text-xs font-semibold flex items-center gap-2.5 transform translate-y-20 opacity-0 transition-all duration-300">
+    <i class="fa-solid fa-circle-check text-cyan-400"></i>
+    <span id="toastMsg">Action completed successfully</span>
+  </div>
+
+  <!-- Main Application Script -->
+  <script>
+    // State management
+    const state = {
+      image: null,
+      cols: 4,
+      rows: 4,
+      margin: 0,
+      gutter: 0,
+      namingScheme: 'codenames',
+      prefix: 'bot-avatar',
+      resolution: 'original',
+      format: 'image/png',
+      shape: 'square', // 'square' or 'circle'
+      showGrid: true,
+      showLabels: true,
+      slicedTiles: []
+    };
+
+    const AI_CODENAMES = [
+      'Nexus-01', 'Aegis-02', 'Echo-03', 'Vortex-04', 'Cypher-05',
+      'Zenith-06', 'Pulse-07', 'Specter-08', 'Orion-09', 'Titan-10',
+      'Apex-11', 'Vector-12', 'Nova-13', 'Cipher-14', 'Spark-15',
+      'Quantum-16', 'Matrix-17', 'Solaris-18', 'Krypton-19', 'Glitch-20',
+      'Omega-21', 'Zero-22', 'Helix-23', 'Atlas-24', 'Prism-25'
+    ];
+
+    // DOM Elements
+    const fileInput = document.getElementById('fileInput');
+    const btnLoadSample = document.getElementById('btnLoadSample');
+    const btnLoadCyberSample = document.getElementById('btnLoadCyberSample');
+    const btnGenerateBots = document.getElementById('btnGenerateBots');
+    const btnPasteClipboard = document.getElementById('btnPasteClipboard');
+    const sourceCanvas = document.getElementById('sourceCanvas');
+    const previewCanvas = document.getElementById('previewCanvas');
+    const previewCtx = previewCanvas.getContext('2d');
+    const avatarGrid = document.getElementById('avatarGrid');
+    const dropZone = document.getElementById('dropZone');
+    const dropPrompt = document.getElementById('dropPrompt');
+    const sheetDimensions = document.getElementById('sheetDimensions');
+    const tileCountBadge = document.getElementById('tileCountBadge');
+    const hoverInfo = document.getElementById('hoverInfo');
+    const toast = document.getElementById('toast');
+    const toastMsg = document.getElementById('toastMsg');
+
+    // Controls
+    const inputCols = document.getElementById('inputCols');
+    const inputRows = document.getElementById('inputRows');
+    const valCols = document.getElementById('valCols');
+    const valRows = document.getElementById('valRows');
+    const inputMargin = document.getElementById('inputMargin');
+    const valMargin = document.getElementById('valMargin');
+    const inputGutter = document.getElementById('inputGutter');
+    const valGutter = document.getElementById('valGutter');
+    const inputPrefix = document.getElementById('inputPrefix');
+    const prefixInputWrapper = document.getElementById('prefixInputWrapper');
+    const selectResolution = document.getElementById('selectResolution');
+    const selectFormat = document.getElementById('selectFormat');
+    const chkShowGrid = document.getElementById('chkShowGrid');
+    const chkShowLabels = document.getElementById('chkShowLabels');
+    const btnDownloadZip = document.getElementById('btnDownloadZip');
+    const btnSliceNow = document.getElementById('btnSliceNow');
+    const btnShapeSquare = document.getElementById('btnShapeSquare');
+    const btnShapeCircle = document.getElementById('btnShapeCircle');
+
+    // Notification helper
+    function showToast(message) {
+      toastMsg.innerText = message;
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 2500);
+    }
+
+    // Load an image element into the state and process
+    function loadImageElement(img) {
+      state.image = img;
+      sourceCanvas.width = img.naturalWidth || img.width;
+      sourceCanvas.height = img.naturalHeight || img.height;
+      const sCtx = sourceCanvas.getContext('2d');
+      sCtx.drawImage(img, 0, 0);
+
+      sheetDimensions.innerText = `${sourceCanvas.width} × ${sourceCanvas.height} px`;
+      dropPrompt.classList.add('hidden');
+      updateSlicing();
+      showToast(`Image loaded (${sourceCanvas.width}x${sourceCanvas.height})`);
+    }
+
+    // Load Image from URL (Sample 4x4 Bot Sheet)
+    function loadSampleSheet() {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        state.cols = 4;
+        state.rows = 4;
+        inputCols.value = 4;
+        valCols.innerText = '4';
+        inputRows.value = 4;
+        valRows.innerText = '4';
+        loadImageElement(img);
+      };
+      img.onerror = () => {
+        // Fallback to cyber sheet or procedural
+        loadCyberSampleSheet();
+      };
+      img.src = 'assets/sample_avatars.jpeg';
+    }
+
+    // Load Cyber Bots (3x3 Sheet)
+    function loadCyberSampleSheet() {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        state.cols = 3;
+        state.rows = 3;
+        inputCols.value = 3;
+        valCols.innerText = '3';
+        inputRows.value = 3;
+        valRows.innerText = '3';
+        loadImageElement(img);
+      };
+      img.onerror = () => {
+        // Fallback to procedurally generated grid if sample image is missing
+        generateProceduralBotSheet(3, 3);
+      };
+      img.src = 'assets/sample-bot-sheet.png';
+    }
+
+    // Procedural Bot Avatar Generator directly onto Canvas
+    function generateProceduralBotSheet(cols = 3, rows = 3) {
+      const tileSize = 512;
+      const totalW = cols * tileSize;
+      const totalH = rows * tileSize;
+
+      const genCanvas = document.createElement('canvas');
+      genCanvas.width = totalW;
+      genCanvas.height = totalH;
+      const ctx = genCanvas.getContext('2d');
+
+      const botColorThemes = [
+        { bg: '#0f172a', body: '#1e293b', accent: '#06b6d4', glow: '#22d3ee', eye: '#ffffff', style: 'visor' },
+        { bg: '#1a1031', body: '#3b1d61', accent: '#a855f7', glow: '#d8b4fe', eye: '#f472b6', style: 'dual' },
+        { bg: '#061e14', body: '#103c2a', accent: '#10b981', glow: '#34d399', eye: '#a7f3d0', style: 'cyclops' },
+        { bg: '#291906', body: '#4e300c', accent: '#f59e0b', glow: '#fbbf24', eye: '#fef3c7', style: 'retro' },
+        { bg: '#260a10', body: '#4c141f', accent: '#ef4444', glow: '#f87171', eye: '#fecaca', style: 'stealth' },
+        { bg: '#240f26', body: '#491b4e', accent: '#ec4899', glow: '#f472b6', eye: '#93c5fd', style: 'cute' },
+        { bg: '#11183c', body: '#27316b', accent: '#6366f1', glow: '#818cf8', eye: '#e0e7ff', style: 'visor' },
+        { bg: '#131f0c', body: '#243b17', accent: '#84cc16', glow: '#a3e635', eye: '#ecfccb', style: 'dual' },
+        { bg: '#141416', body: '#2a2a2e', accent: '#f97316', glow: '#fb923c', eye: '#fed7aa', style: 'cyclops' },
+        { bg: '#0b192c', body: '#1e3e62', accent: '#00adb5', glow: '#393e46', eye: '#eeeeee', style: 'retro' },
+        { bg: '#22092c', body: '#872341', accent: '#be3144', glow: '#f05941', eye: '#ffffff', style: 'stealth' },
+        { bg: '#1b1a55', body: '#535c91', accent: '#9290c3', glow: '#070f2b', eye: '#67c6e3', style: 'cute' }
+      ];
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const idx = r * cols + c;
+          const ox = c * tileSize;
+          const oy = r * tileSize;
+          const theme = botColorThemes[idx % botColorThemes.length];
+
+          // 1. Cell Background
+          ctx.fillStyle = theme.bg;
+          ctx.fillRect(ox, oy, tileSize, tileSize);
+
+          // Subtle Grid pattern
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+          ctx.lineWidth = 1;
+          for (let step = 32; step < tileSize; step += 32) {
+            ctx.beginPath();
+            ctx.moveTo(ox + step, oy);
+            ctx.lineTo(ox + step, oy + tileSize);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(ox, oy + step);
+            ctx.lineTo(ox + tileSize, oy + step);
+            ctx.stroke();
+          }
+
+          const cx = ox + tileSize / 2;
+          const cy = oy + tileSize / 2;
+
+          // Background ambient rings
+          ctx.strokeStyle = theme.accent;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(cx, cy, 180, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(cx, cy, 200, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // 2. Torso / Shoulders
+          const torsoTop = cy + 110;
+          ctx.fillStyle = theme.body;
+          ctx.strokeStyle = theme.accent;
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.roundRect(cx - 160, torsoTop, 320, 160, 24);
+          ctx.fill();
+          ctx.stroke();
+
+          // Torso Core Reactor
+          const coreY = torsoTop + 50;
+          ctx.fillStyle = theme.glow;
+          ctx.beginPath();
+          ctx.arc(cx, coreY, 28, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(cx, coreY, 14, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Neck
+          ctx.fillStyle = '#334155';
+          ctx.fillRect(cx - 40, cy + 70, 80, 40);
+
+          // 3. Antennas / Sensors
+          const headTop = cy - 75;
+          const headW = 120;
+          const headH = 170;
+
+          // Side ear sensors
+          ctx.fillStyle = theme.accent;
+          ctx.fillRect(cx - headW - 18, headTop + 40, 18, 60);
+          ctx.fillRect(cx + headW, headTop + 40, 18, 60);
+
+          // Top Antenna
+          if (idx % 2 === 0) {
+            ctx.strokeStyle = theme.accent;
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(cx - 45, headTop);
+            ctx.lineTo(cx - 65, headTop - 50);
+            ctx.moveTo(cx + 45, headTop);
+            ctx.lineTo(cx + 65, headTop - 50);
+            ctx.stroke();
+
+            ctx.fillStyle = theme.glow;
+            ctx.beginPath();
+            ctx.arc(cx - 68, headTop - 54, 10, 0, Math.PI * 2);
+            ctx.arc(cx + 68, headTop - 54, 10, 0, Math.PI * 2);
+            ctx.fill();
+          } else {
+            ctx.fillStyle = theme.accent;
+            ctx.beginPath();
+            ctx.moveTo(cx, headTop - 60);
+            ctx.lineTo(cx - 24, headTop);
+            ctx.lineTo(cx + 24, headTop);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = theme.glow;
+            ctx.beginPath();
+            ctx.arc(cx, headTop - 45, 10, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          // 4. Robot Head
+          ctx.fillStyle = theme.body;
+          ctx.strokeStyle = theme.accent;
+          ctx.lineWidth = 6;
+          ctx.beginPath();
+          ctx.roundRect(cx - headW, headTop, headW * 2, headH, 26);
+          ctx.fill();
+          ctx.stroke();
+
+          // Forehead Plate
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+          ctx.fillRect(cx - 80, headTop + 14, 160, 14);
+
+          // 5. Eyes
+          const eyeY = headTop + 65;
+          if (theme.style === 'visor') {
+            ctx.fillStyle = '#090d16';
+            ctx.strokeStyle = theme.accent;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.roundRect(cx - 85, eyeY - 12, 170, 36, 12);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = theme.glow;
+            ctx.beginPath();
+            ctx.roundRect(cx - 78, eyeY - 6, 156, 24, 8);
+            ctx.fill();
+          } else if (theme.style === 'cyclops') {
+            ctx.fillStyle = '#090d16';
+            ctx.strokeStyle = theme.accent;
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.arc(cx, eyeY + 5, 45, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = theme.glow;
+            ctx.beginPath();
+            ctx.arc(cx, eyeY + 5, 28, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(cx, eyeY + 5, 14, 0, Math.PI * 2);
+            ctx.fill();
+          } else if (theme.style === 'retro') {
+            // Square LED matrix
+            [-50, 50].forEach(sign => {
+              ctx.fillStyle = '#050505';
+              ctx.fillRect(cx + sign - 25, eyeY - 12, 50, 36);
+              ctx.fillStyle = theme.glow;
+              for (let mr = 0; mr < 3; mr++) {
+                for (let mc = 0; mc < 3; mc++) {
+                  ctx.fillRect(cx + sign - 20 + mc * 15, eyeY - 6 + mr * 10, 8, 6);
+                }
+              }
+            });
+          } else {
+            // Dual Glowing Eyes
+            [-50, 50].forEach(sign => {
+              ctx.fillStyle = '#090d16';
+              ctx.strokeStyle = theme.accent;
+              ctx.lineWidth = 4;
+              ctx.beginPath();
+              ctx.arc(cx + sign, eyeY + 5, 26, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.stroke();
+
+              ctx.fillStyle = theme.glow;
+              ctx.beginPath();
+              ctx.arc(cx + sign, eyeY + 5, 16, 0, Math.PI * 2);
+              ctx.fill();
+
+              ctx.fillStyle = '#ffffff';
+              ctx.beginPath();
+              ctx.arc(cx + sign + 3, eyeY + 2, 6, 0, Math.PI * 2);
+              ctx.fill();
+            });
+          }
+
+          // 6. Mouth / Grill
+          const mouthY = headTop + 125;
+          ctx.fillStyle = '#0a0f1d';
+          ctx.strokeStyle = theme.accent;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(cx - 55, mouthY, 110, 24, 6);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = theme.glow;
+          for (let bx = cx - 45; bx <= cx + 45; bx += 12) {
+            ctx.fillRect(bx, mouthY + 5, 4, 14);
+          }
+
+          // 7. Bot Label Badge on tile corner
+          const badgeName = AI_CODENAMES[idx % AI_CODENAMES.length];
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+          ctx.strokeStyle = theme.accent;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.roundRect(ox + 16, oy + 16, 120, 28, 6);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.fillStyle = theme.glow;
+          ctx.font = 'bold 12px monospace';
+          ctx.fillText(badgeName, ox + 26, oy + 35);
+        }
+      }
+
+      // Load generated canvas as current image
+      const generatedImg = new Image();
+      generatedImg.onload = () => {
+        state.cols = cols;
+        state.rows = rows;
+        inputCols.value = cols;
+        valCols.innerText = cols.toString();
+        inputRows.value = rows;
+        valRows.innerText = rows.toString();
+        loadImageElement(generatedImg);
+        showToast(`Generated fresh ${cols}x${rows} procedural bot avatar sheet!`);
+      };
+      generatedImg.src = genCanvas.toDataURL('image/png');
+    }
+
+    // Slicing logic
+    function updateSlicing() {
+      if (!state.image) return;
+
+      const srcW = sourceCanvas.width;
+      const srcH = sourceCanvas.height;
+
+      const cols = state.cols;
+      const rows = state.rows;
+      const margin = state.margin;
+      const gutter = state.gutter;
+
+      tileCountBadge.innerText = `${cols * rows} Avatars (${cols}×${rows})`;
+
+      // Usable area after margin
+      const usableW = srcW - (margin * 2);
+      const usableH = srcH - (margin * 2);
+
+      // Tile dimensions
+      const totalGutterW = (cols - 1) * gutter;
+      const totalGutterH = (rows - 1) * gutter;
+
+      const tileW = Math.max(1, Math.floor((usableW - totalGutterW) / cols));
+      const tileH = Math.max(1, Math.floor((usableH - totalGutterH) / rows));
+
+      // Calculate slice coordinates
+      state.slicedTiles = [];
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const x = margin + c * (tileW + gutter);
+          const y = margin + r * (tileH + gutter);
+          const index = r * cols + c;
+
+          let name;
+          if (state.namingScheme === 'codenames') {
+            name = AI_CODENAMES[index % AI_CODENAMES.length] || `bot-${index + 1}`;
+          } else {
+            const num = String(index + 1).padStart(2, '0');
+            name = `${state.prefix}-${num}`;
+          }
+
+          state.slicedTiles.push({
+            id: index,
+            col: c,
+            row: r,
+            x: Math.round(x),
+            y: Math.round(y),
+            w: Math.round(tileW),
+            h: Math.round(tileH),
+            name: name
+          });
+        }
+      }
+
+      renderPreviewCanvas();
+      renderAvatarGallery();
+    }
+
+    // Draw the image and the grid overlays on previewCanvas
+    function renderPreviewCanvas() {
+      if (!state.image) return;
+
+      const srcW = sourceCanvas.width;
+      const srcH = sourceCanvas.height;
+
+      previewCanvas.width = srcW;
+      previewCanvas.height = srcH;
+
+      // Draw background image
+      previewCtx.drawImage(sourceCanvas, 0, 0);
+
+      // Draw cutting grid if enabled
+      if (state.showGrid) {
+        state.slicedTiles.forEach(tile => {
+          // Bounding Box
+          previewCtx.strokeStyle = '#06b6d4';
+          previewCtx.lineWidth = Math.max(2, Math.round(srcW / 400));
+          previewCtx.setLineDash([8, 4]);
+          previewCtx.strokeRect(tile.x, tile.y, tile.w, tile.h);
+          previewCtx.setLineDash([]);
+
+          // Labels
+          if (state.showLabels) {
+            const fontSize = Math.max(12, Math.round(tile.w * 0.08));
+            previewCtx.font = `bold ${fontSize}px sans-serif`;
+
+            // Tag background
+            const tagText = `${tile.name}`;
+            const metrics = previewCtx.measureText(tagText);
+            const tagW = metrics.width + 16;
+            const tagH = fontSize + 12;
+
+            previewCtx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+            previewCtx.fillRect(tile.x + 8, tile.y + 8, tagW, tagH);
+
+            previewCtx.strokeStyle = '#22d3ee';
+            previewCtx.lineWidth = 1;
+            previewCtx.strokeRect(tile.x + 8, tile.y + 8, tagW, tagH);
+
+            previewCtx.fillStyle = '#22d3ee';
+            previewCtx.fillText(tagText, tile.x + 16, tile.y + 8 + fontSize);
+          }
+        });
+      }
+    }
+
+    // Generate individual avatar canvases and render cards in gallery
+    function renderAvatarGallery() {
+      avatarGrid.innerHTML = '';
+
+      state.slicedTiles.forEach(tile => {
+        // Create canvas for individual sliced tile
+        let targetW = tile.w;
+        let targetH = tile.h;
+
+        if (state.resolution !== 'original') {
+          const res = parseInt(state.resolution, 10);
+          targetW = res;
+          targetH = res;
+        }
+
+        const tileCanvas = document.createElement('canvas');
+        tileCanvas.width = targetW;
+        tileCanvas.height = targetH;
+        const tCtx = tileCanvas.getContext('2d');
+
+        // Draw crop region
+        tCtx.imageSmoothingEnabled = true;
+        tCtx.imageSmoothingQuality = 'high';
+        tCtx.drawImage(
+          sourceCanvas,
+          tile.x, tile.y, tile.w, tile.h,
+          0, 0, targetW, targetH
+        );
+
+        const dataUrl = tileCanvas.toDataURL(state.format, 0.95);
+        tile.dataUrl = dataUrl;
+        tile.canvas = tileCanvas;
+
+        // Card Container
+        const card = document.createElement('div');
+        card.className = 'bg-slate-950/80 border border-slate-800 rounded-xl p-3 flex flex-col items-center group hover:border-cyan-500/50 transition-all';
+
+        // Avatar Image Preview
+        const imgWrap = document.createElement('div');
+        imgWrap.className = 'relative w-full aspect-square flex items-center justify-center p-2 mb-2 bg-slate-900 rounded-lg overflow-hidden';
+
+        const img = document.createElement('img');
+        img.src = dataUrl;
+        img.alt = tile.name;
+        img.className = `w-full h-full object-cover transition-all duration-200 ${state.shape === 'circle' ? 'rounded-full ring-2 ring-cyan-500/60 shadow-lg' : 'rounded'}`;
+        imgWrap.appendChild(img);
+
+        // Discord/Slack online badge if circular preview
+        if (state.shape === 'circle') {
+          const statusDot = document.createElement('div');
+          statusDot.className = 'absolute bottom-3 right-3 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-slate-900 shadow';
+          imgWrap.appendChild(statusDot);
+        }
+
+        // Tile Information
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'w-full text-center space-y-1 mb-2';
+
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.value = tile.name;
+        nameInput.className = 'w-full bg-transparent text-center font-bold text-xs text-slate-200 border-b border-transparent hover:border-slate-700 focus:border-cyan-400 focus:outline-none transition py-0.5';
+        nameInput.onchange = (e) => {
+          tile.name = e.target.value.trim() || `bot-${tile.id + 1}`;
+          renderPreviewCanvas();
+        };
+
+        const sizeLabel = document.createElement('p');
+        sizeLabel.className = 'text-[10px] text-slate-500 font-mono';
+        sizeLabel.innerText = `${targetW} × ${targetH} px`;
+
+        infoDiv.appendChild(nameInput);
+        infoDiv.appendChild(sizeLabel);
+
+        // Action Buttons (Download, Copy)
+        const btnGroup = document.createElement('div');
+        btnGroup.className = 'w-full grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-800/80';
+
+        const btnDownload = document.createElement('button');
+        btnDownload.className = 'py-1 rounded bg-slate-800 hover:bg-cyan-600 hover:text-white text-cyan-300 text-[11px] font-medium flex items-center justify-center gap-1 transition';
+        btnDownload.title = 'Download image';
+        btnDownload.innerHTML = '<i class="fa-solid fa-download"></i> Save';
+        btnDownload.onclick = () => downloadSingleTile(tile);
+
+        const btnCopy = document.createElement('button');
+        btnCopy.className = 'py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium flex items-center justify-center gap-1 transition';
+        btnCopy.title = 'Copy image to clipboard';
+        btnCopy.innerHTML = '<i class="fa-regular fa-copy"></i> Copy';
+        btnCopy.onclick = () => copyTileToClipboard(tileCanvas);
+
+        btnGroup.appendChild(btnDownload);
+        btnGroup.appendChild(btnCopy);
+
+        card.appendChild(imgWrap);
+        card.appendChild(infoDiv);
+        card.appendChild(btnGroup);
+
+        avatarGrid.appendChild(card);
+      });
+    }
+
+    // Download Single Tile
+    function downloadSingleTile(tile) {
+      const ext = state.format === 'image/jpeg' ? 'jpg' : (state.format === 'image/webp' ? 'webp' : 'png');
+      const filename = `${tile.name}.${ext}`;
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = tile.dataUrl;
+      link.click();
+      showToast(`Downloaded ${filename}`);
+    }
+
+    // Copy Canvas to Clipboard as PNG blob
+    async function copyTileToClipboard(canvas) {
+      try {
+        canvas.toBlob(async (blob) => {
+          if (!blob) return;
+          const item = new ClipboardItem({ 'image/png': blob });
+          await navigator.clipboard.write([item]);
+          showToast('Copied avatar to clipboard!');
+        }, 'image/png');
+      } catch (err) {
+        console.error('Clipboard copy failed:', err);
+        showToast('Clipboard access denied or unsupported');
+      }
+    }
+
+    // Download All as ZIP using JSZip
+    async function downloadAllZip() {
+      if (!state.slicedTiles || state.slicedTiles.length === 0) {
+        showToast('No sliced avatars to package');
+        return;
+      }
+
+      if (typeof JSZip === 'undefined') {
+        showToast('JSZip library not available, downloading sequentially...');
+        state.slicedTiles.forEach(tile => downloadSingleTile(tile));
+        return;
+      }
+
+      showToast('Creating ZIP archive...');
+      const zip = new JSZip();
+      const ext = state.format === 'image/jpeg' ? 'jpg' : (state.format === 'image/webp' ? 'webp' : 'png');
+
+      state.slicedTiles.forEach((tile) => {
+        // Strip base64 prefix
+        const base64Data = tile.dataUrl.split(',')[1];
+        zip.file(`${tile.name}.${ext}`, base64Data, { base64: true });
+      });
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(content);
+      link.download = `bot-avatars-${Date.now()}.zip`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+      showToast('ZIP archive downloaded successfully!');
+    }
+
+    // Event Listeners for Controls
+    inputCols.addEventListener('input', (e) => {
+      state.cols = parseInt(e.target.value, 10);
+      valCols.innerText = state.cols;
+      updateSlicing();
+    });
+
+    inputRows.addEventListener('input', (e) => {
+      state.rows = parseInt(e.target.value, 10);
+      valRows.innerText = state.rows;
+      updateSlicing();
+    });
+
+    inputMargin.addEventListener('input', (e) => {
+      state.margin = parseInt(e.target.value, 10);
+      valMargin.innerText = `${state.margin} px`;
+      updateSlicing();
+    });
+
+    inputGutter.addEventListener('input', (e) => {
+      state.gutter = parseInt(e.target.value, 10);
+      valGutter.innerText = `${state.gutter} px`;
+      updateSlicing();
+    });
+
+    selectResolution.addEventListener('change', (e) => {
+      state.resolution = e.target.value;
+      updateSlicing();
+    });
+
+    selectFormat.addEventListener('change', (e) => {
+      state.format = e.target.value;
+      updateSlicing();
+    });
+
+    chkShowGrid.addEventListener('change', (e) => {
+      state.showGrid = e.target.checked;
+      renderPreviewCanvas();
+    });
+
+    chkShowLabels.addEventListener('change', (e) => {
+      state.showLabels = e.target.checked;
+      renderPreviewCanvas();
+    });
+
+    document.querySelectorAll('input[name="namingScheme"]').forEach(radio => {
+      radio.addEventListener('change', (e) => {
+        state.namingScheme = e.target.value;
+        prefixInputWrapper.classList.toggle('hidden', state.namingScheme !== 'prefix');
+        updateSlicing();
+      });
+    });
+
+    inputPrefix.addEventListener('input', (e) => {
+      state.prefix = e.target.value.trim() || 'avatar';
+      updateSlicing();
+    });
+
+    // Preset buttons
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const c = parseInt(btn.dataset.cols, 10);
+        const r = parseInt(btn.dataset.rows, 10);
+        state.cols = c;
+        state.rows = r;
+        inputCols.value = c;
+        inputRows.value = r;
+        valCols.innerText = c;
+        valRows.innerText = r;
+        updateSlicing();
+      });
+    });
+
+    // Shape toggles
+    btnShapeSquare.addEventListener('click', () => {
+      state.shape = 'square';
+      btnShapeSquare.className = 'px-2.5 py-1 rounded-lg bg-slate-800 text-cyan-300 font-medium transition';
+      btnShapeCircle.className = 'px-2.5 py-1 rounded-lg text-slate-400 hover:text-slate-200 font-medium transition';
+      renderAvatarGallery();
+    });
+
+    btnShapeCircle.addEventListener('click', () => {
+      state.shape = 'circle';
+      btnShapeCircle.className = 'px-2.5 py-1 rounded-lg bg-slate-800 text-cyan-300 font-medium transition';
+      btnShapeSquare.className = 'px-2.5 py-1 rounded-lg text-slate-400 hover:text-slate-200 font-medium transition';
+      renderAvatarGallery();
+    });
+
+    btnSliceNow.addEventListener('click', () => {
+      updateSlicing();
+      showToast('Grid re-sliced!');
+    });
+
+    btnDownloadZip.addEventListener('click', downloadAllZip);
+
+    // Action buttons
+    btnLoadSample.addEventListener('click', loadSampleSheet);
+    btnLoadCyberSample.addEventListener('click', loadCyberSampleSheet);
+    btnGenerateBots.addEventListener('click', () => {
+      generateProceduralBotSheet(state.cols, state.rows);
+    });
+
+    // File Input change
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => loadImageElement(img);
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // Paste Image from Clipboard
+    async function handleClipboardPaste() {
+      try {
+        const items = await navigator.clipboard.read();
+        for (const item of items) {
+          const imageType = item.types.find(type => type.startsWith('image/'));
+          if (imageType) {
+            const blob = await item.getType(imageType);
+            const img = new Image();
+            img.onload = () => loadImageElement(img);
+            img.src = URL.createObjectURL(blob);
+            return;
+          }
+        }
+        showToast('No image found in clipboard');
+      } catch (err) {
+        showToast('Please press Ctrl+V directly to paste');
+      }
+    }
+
+    btnPasteClipboard.addEventListener('click', handleClipboardPaste);
+
+    window.addEventListener('paste', (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const blob = items[i].getAsFile();
+          const img = new Image();
+          img.onload = () => loadImageElement(img);
+          img.src = URL.createObjectURL(blob);
+          showToast('Image pasted from clipboard!');
+          break;
+        }
+      }
+    });
+
+    // Drag and Drop
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('border-cyan-400', 'bg-slate-900');
+    });
+
+    dropZone.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('border-cyan-400', 'bg-slate-900');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('border-cyan-400', 'bg-slate-900');
+      const files = e.dataTransfer.files;
+      if (files.length > 0 && files[0].type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.onload = () => loadImageElement(img);
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(files[0]);
+      }
+    });
+
+    // Hover inspection on canvas
+    previewCanvas.addEventListener('mousemove', (e) => {
+      if (!state.slicedTiles || state.slicedTiles.length === 0) return;
+      const rect = previewCanvas.getBoundingClientRect();
+      const scaleX = previewCanvas.width / rect.width;
+      const scaleY = previewCanvas.height / rect.height;
+      const mouseX = (e.clientX - rect.left) * scaleX;
+      const mouseY = (e.clientY - rect.top) * scaleY;
+
+      const hovered = state.slicedTiles.find(t => 
+        mouseX >= t.x && mouseX <= t.x + t.w &&
+        mouseY >= t.y && mouseY <= t.y + t.h
+      );
+
+      if (hovered) {
+        hoverInfo.innerText = `Hovered: ${hovered.name} (Col ${hovered.col + 1}, Row ${hovered.row + 1}) | ${hovered.w}×${hovered.h}px`;
+      } else {
+        hoverInfo.innerText = 'Ready';
+      }
+    });
+
+    // Auto-load sample sheet on first load
+    window.addEventListener('DOMContentLoaded', () => {
+      loadSampleSheet();
+    });
+  </script>
+</body>
+</html>
