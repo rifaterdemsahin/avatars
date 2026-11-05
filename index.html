@@ -331,9 +331,9 @@
             <div>
               <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
                 <i class="fa-solid fa-shapes text-fuchsia-400"></i>
-                <span>Generated Bot Avatars</span>
+                <span>Generated & Sliced Bot Avatars</span>
               </h2>
-              <p class="text-xs text-slate-400">Preview as square or chat circle, download individually, or copy to clipboard</p>
+              <p class="text-xs text-slate-400">Live cut preview from the canvas (preview square/circle, rename, or download individually)</p>
             </div>
 
             <!-- Preview Shape Selector -->
@@ -350,6 +350,42 @@
           <!-- Cards Grid Container -->
           <div id="avatarGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-4 gap-4">
             <!-- Dynamic avatar cards inserted by JS -->
+          </div>
+        </div>
+
+        <!-- 16 Pre-Sliced Static Bot Avatars Library -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-3">
+            <div>
+              <h2 class="text-sm font-bold uppercase tracking-wider text-cyan-300 flex items-center gap-2">
+                <i class="fa-solid fa-folder-tree text-cyan-400"></i>
+                <span>Pre-Sliced Bot Avatars Library (16 Small Images)</span>
+              </h2>
+              <p class="text-xs text-slate-400">Ready-to-use 512×512 PNG assets generated from <code class="text-cyan-400 font-mono">sample_avatar.jpeg</code></p>
+            </div>
+            <a href="avatars/manifest.json" target="_blank" download="manifest.json"
+               class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 flex items-center gap-1.5 transition">
+              <i class="fa-solid fa-code text-cyan-400"></i>
+              <span>manifest.json</span>
+            </a>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-4 xl:grid-cols-8 gap-3">
+            <template id="staticAvatarTemplate">
+              <div class="bg-slate-950/80 border border-slate-800 hover:border-cyan-500/50 rounded-xl p-2.5 flex flex-col items-center group transition">
+                <a href="" target="_blank" class="w-full aspect-square bg-slate-900 rounded-lg overflow-hidden mb-2 relative group-hover:scale-105 transition-transform duration-200 block">
+                  <img src="" alt="" class="w-full h-full object-cover">
+                </a>
+                <span class="text-xs font-mono font-bold text-slate-300 mb-0.5"></span>
+                <span class="text-[10px] text-cyan-400 mb-2"></span>
+                <a href="" download="" class="w-full py-1 bg-slate-800 hover:bg-cyan-600 hover:text-white text-cyan-300 rounded text-[11px] font-medium flex items-center justify-center gap-1 transition">
+                  <i class="fa-solid fa-download"></i> Save
+                </a>
+              </div>
+            </template>
+            <div id="staticAvatarsList" class="contents">
+              <!-- Dynamically populated or fallback -->
+            </div>
           </div>
         </div>
 
@@ -1253,8 +1289,42 @@
       }
     });
 
+    // Render pre-sliced static avatar gallery (16 bots)
+    function initStaticAvatars() {
+      const container = document.getElementById('staticAvatarsList');
+      if (!container) return;
+      const codenames = [
+        "Aegis", "Nexus", "Echo", "Vortex",
+        "Cypher", "Zenith", "Pulse", "Specter",
+        "Orion", "Titan", "Apex", "Vector",
+        "Nova", "Glitch", "Spark", "Quantum"
+      ];
+      container.innerHTML = '';
+      for (let i = 1; i <= 16; i++) {
+        const num = String(i).padStart(2, '0');
+        const filename = `bot-${num}.png`;
+        const path = `avatars/${filename}`;
+        const name = codenames[i - 1];
+
+        const card = document.createElement('div');
+        card.className = 'bg-slate-950/80 border border-slate-800 hover:border-cyan-500/50 rounded-xl p-2.5 flex flex-col items-center group transition';
+        card.innerHTML = `
+          <a href="${path}" target="_blank" class="w-full aspect-square bg-slate-900 rounded-lg overflow-hidden mb-2 relative group-hover:scale-105 transition-transform duration-200 block">
+            <img src="${path}" alt="${filename}" class="w-full h-full object-cover">
+          </a>
+          <span class="text-xs font-mono font-bold text-slate-300 mb-0.5">${filename}</span>
+          <span class="text-[10px] text-cyan-400 mb-2">${name}</span>
+          <a href="${path}" download="${filename}" class="w-full py-1 bg-slate-800 hover:bg-cyan-600 hover:text-white text-cyan-300 rounded text-[11px] font-medium flex items-center justify-center gap-1 transition">
+            <i class="fa-solid fa-download"></i> Save
+          </a>
+        `;
+        container.appendChild(card);
+      }
+    }
+
     // Auto-load sample sheet on first load
     window.addEventListener('DOMContentLoaded', () => {
+      initStaticAvatars();
       loadSampleSheet();
     });
   </script>

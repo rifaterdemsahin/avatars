@@ -1,0 +1,181 @@
+{
+  "total": 16,
+  "avatars": [
+    {
+      "id": 1,
+      "name": "bot-01",
+      "codename": "Aegis",
+      "filename": "bot-01.png",
+      "path": "avatars/bot-01.png",
+      "row": 1,
+      "col": 1,
+      "width": 512,
+      "height": 512
+    },
+    {
+      "id": 2,
+      "name": "bot-02",
+      "codename": "Nexus",
+      "filename": "bot-02.png",
+      "path": "avatars/bot-02.png",
+      "row": 1,
+      "col": 2,
+      "width": 512,
+      "height": 512
+    },
+    {
+      "id": 3,
+      "name": "bot-03",
+      "codename": "Echo",
+      "filename": "bot-03.png",
+      "path": "avatars/bot-03.png",
+      "row": 1,
+      "col": 3,
+      "width": 512,
+      "height": 512
+    },
+    {
+      "id": 4,
+      "name": "bot-04",
+      "codename": "Vortex",
+      "filename": "bot-04.png",
+      "path": "avatars/bot-04.png",
+      "row": 1,
+      "col": 4,
+      "width": 512,
+      "height": 512
+    },
+    {
+      "id": 5,
+      "name": "bot-05",
+      "codename": "Cypher",
+      "filename": "bot-05.png",
+      "path": "avatars/bot-05.png",
+      "row": 2,
+      "col": 1,
+      "width": 512,
+      "height": 512
+    },
+    {
+      "id": 6,
+      "name": "bot-06",
+      "codename": "Zenith",
+      "filename": "bot-06.png",
+      "path": "avatars/bot-06.png",
+      "row": 2,
+      "col": 2,
+      "width": 512,
+      "height": 512
+    },
+    {
+      "id": 7,
+      "name": "bot-07",
+      "codename": "Pulse",
+      "filename": "bot-07.png",
+      "path": "avatars/bot-07.png",
+      "row": 2,
+      "col": 3,
+      "width": 512,
+      "height": 512
+    },
+    {
+      "id": 8,
+      "name": "bot-08",
+      "codename": "Specter",
+      "filename": "bot-08.png",
+      "path": "avatars/bot-08.png",
+      "row": 2,
+      "col": 4,
+      "width": 512,
+      "height": 512
+    },
+    {
+      "id": 9,
+      "name": "bot-09",
+      "codename": "Orion",
+      "filename": "bot-09.png",
+      "path": "avatars/bot-09.png",
+      "row": 3,
+      "col": 1,
+      "width": 512,
+      "height": 512
+    },
+    {
+      "id": 10,
+      "name": "bot-10",
+      "codename": "Titan",
+      "filename": "bot-10.png",
+      "path": "avatars/bot-10.png",
+      "row": 3,
+      "col": 2,
+      "width": 512,
+      "height": 512
+    },
+    {
+      "id": 11,
+      "name": "bot-11",
+      "codename": "Apex",
+      "filename": "bot-11.png",
+      "path": "avatars/bot-11.png",
+      "row": 3,
+      "col": 3,
+      "width": 512,
+      "height": 512
+    },
+    {
+      "id": 12,
+      "name": "bot-12",
+      "codename": "Vector",
+      "filename": "bot-12.png",
+      "path": "avatars/bot-12.png",
+      "row": 3,
+      "col": 4,
+      "width": 512,
+      "height": 512
+    },
+    {
+      "id": 13,
+      "name": "bot-13",
+      "codename": "Nova",
+      "filename": "bot-13.png",
+      "path": "avatars/bot-13.png",
+      "row": 4,
+      "col": 1,
+      "width": 512,
+      "height": 512
+    },
+    {
+      "id": 14,
+      "name": "bot-14",
+      "codename": "Glitch",
+      "filename": "bot-14.png",
+      "path": "avatars/bot-14.png",
+      "row": 4,
+      "col": 2,
+      "width": 512,
+      "height": 512
+    },
+    {
+      "id": 15,
+      "name": "bot-15",
+      "codename": "Spark",
+      "filename": "bot-15.png",
+      "path": "avatars/bot-15.png",
+      "row": 4,
+      "col": 3,
+      "width": 512,
+      "height": 512
+    },
+    {
+      "id": 16,
+      "name": "bot-16",
+      "codename": "Quantum",
+      "filename": "bot-16.png",
+      "path": "avatars/bot-16.png",
+      "row": 4,
+      "col": 4,
+      "width": 512,
+      "height": 512
+    }
+  ]
+}
