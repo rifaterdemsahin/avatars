@@ -12,8 +12,10 @@ for (const l of fs.existsSync(path.join(root, '.env')) ? fs.readFileSync(path.jo
 const KEY = process.env.VENICE_API_KEY;
 const PORT = +process.env.PORT || 3100;
 const CHAT_MODEL = process.env.CHAT_MODEL || 'venice-uncensored-role-play';
+const CHAT_MODEL_TR = process.env.CHAT_MODEL_TR || 'zai-org-glm-5-1'; // roleplay model is weak in Turkish
 const IMAGE_MODEL = process.env.IMAGE_MODEL || 'venice-sd35';
 const VIDEO_MODEL = process.env.VIDEO_MODEL || 'seedance-2-0-fast-text-to-video-basic';
+const TTS_MODEL_TR = process.env.TTS_MODEL_TR || 'tts-elevenlabs-turbo-v2-5';
 const TTS_MODEL = process.env.TTS_MODEL || 'tts-kokoro';
 const TURNS = 20; // working context window
 if (!KEY) { console.error('VENICE_API_KEY missing'); process.exit(1); }
@@ -49,7 +51,7 @@ function recall(id, text) {
     .filter(m => (m.fact.toLowerCase().match(/[a-z]{4,}/g) || []).some(w => words.has(w))).slice(0, 5).map(m => m.fact);
 }
 
-function systemPrompt(p, id, userText) {
+function systemPrompt(p, id, userText, lang = 'en', emoji = true) {
   const mem = recall(id, userText);
   return `You are ${p.name}, a fictional character in an interactive story. Stay in character at all times.
 Background: ${p.bio}
@@ -60,6 +62,8 @@ Current scene (the world right now; your dialogue must react to it and to any ch
 Relationship state: ${JSON.stringify({ affection_level: getState(id).affection_level, agreed_plans: getState(id).agreed_plans })}
 ${mem.length ? 'Things you remember about the user:\n- ' + mem.join('\n- ') : ''}
 Do not assume the user's gender or age. Never call them boy, girl, man, miss, sir, lad or similar; use their name if known, otherwise 'you' or a neutral address like 'friend'.
+${lang === 'tr' ? 'Write every reply in natural, idiomatic Turkish (keep the character\'s flavor, adapt the dialect to a Turkish equivalent). The user may write in Turkish or English.' : 'Write every reply in English.'}
+${emoji ? 'Use emojis naturally: 1-3 per reply that match the mood.' : 'Do not use emojis.'}
 Reply in 1-4 short sentences, in first person, no stage-direction headings.`;
 }
 
@@ -128,13 +132,13 @@ http.createServer(async (req, res) => {
     if ((m = url.pathname.match(/^\/api\/chat\/(\w+)$/))) {
       const id = m[1], p = P[id]; if (!p) return json(res, 404, { error: 'unknown persona' });
       if (req.method === 'GET') return json(res, 200, { messages: db.prepare('SELECT role,kind,content,ts FROM messages WHERE persona=? ORDER BY id').all(id), state: getState(id) });
-      const { text } = await readBody(req);
+      const { text, lang, emoji } = await readBody(req);
       await sceneQ[id];
       save(id, 'user', 'text', text);
       await queueScene(id);
-      const msgs = [{ role: 'system', content: systemPrompt(p, id, text) },
+      const msgs = [{ role: 'system', content: systemPrompt(p, id, text, lang, emoji !== false) },
         ...history(id).filter(x => x.kind === 'text').map(x => ({ role: x.role === 'user' ? 'user' : 'assistant', content: x.content }))];
-      const out = await (await venice('/chat/completions', { model: CHAT_MODEL, messages: msgs, temperature: 0.9, max_tokens: 300 })).json();
+      const out = await (await venice('/chat/completions', { model: lang === 'tr' ? CHAT_MODEL_TR : CHAT_MODEL, messages: msgs, temperature: 0.9, max_tokens: 300 })).json();
       const reply = out.choices[0].message.content.trim();
       save(id, 'assistant', 'text', reply);
       queueScene(id);
@@ -173,8 +177,9 @@ http.createServer(async (req, res) => {
       throw new Error('video timed out');
     }
     if ((m = url.pathname.match(/^\/api\/tts\/(\w+)$/)) && req.method === 'POST') {
-      const p = P[m[1]]; const { text } = await readBody(req);
-      const r = await venice('/audio/speech', { model: TTS_MODEL, input: text.slice(0, 1000), voice: p.voice, response_format: 'mp3' });
+      const p = P[m[1]]; const { text, lang } = await readBody(req);
+      const tr = lang === 'tr'; // Kokoro has no Turkish; use the multilingual ElevenLabs model
+      const r = await venice('/audio/speech', { model: tr ? TTS_MODEL_TR : TTS_MODEL, input: text.slice(0, 1000), voice: tr ? p.voice_tr : p.voice, response_format: 'mp3' });
       res.writeHead(200, { 'Content-Type': 'audio/mpeg' });
       return res.end(Buffer.from(await r.arrayBuffer()));
     }

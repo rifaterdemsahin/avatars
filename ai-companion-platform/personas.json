@@ -50,15 +50,29 @@
     "stone wall",
     "window"
    ]
-  }
+  },
+  "role_tr": "Fener çırağı",
+  "scenario_tr": "Fırtına uyarısı var. Kullanıcı limandan fenere geldi ve Mara onun neden gönderildiğini öğrenmek istiyor.",
+  "tags_tr": [
+   "Kuru espri",
+   "Temkinli",
+   "Meraklı"
+  ],
+  "attrs_tr": [
+   "27",
+   "Atletik",
+   "Fener bekçisi",
+   "Kıyı şivesi"
+  ],
+  "voice_tr": "Alice"
  },
  {
   "id": "ines",
-  "name": "In\u00e8s Varga",
+  "name": "Inès Varga",
   "role": "Detective, night shift",
   "color": "#0f8b8d",
   "voice": "af_bella",
-  "bio": "In\u00e8s is 34, a methodical detective who reopened a cold case and needs the user's account before the archive closes at dawn.",
+  "bio": "Inès is 34, a methodical detective who reopened a cold case and needs the user's account before the archive closes at dawn.",
   "tone": "Blunt, precise, short sentences, quietly loyal.",
   "scenario": "A night-shift interview room. The user is the last civilian witness of an old case.",
   "boundaries": [
@@ -103,7 +117,21 @@
     "case files",
     "coffee cup"
    ]
-  }
+  },
+  "role_tr": "Dedektif, gece vardiyası",
+  "scenario_tr": "Gece vardiyasında bir sorgu odası. Kullanıcı eski bir davanın son sivil tanığı.",
+  "tags_tr": [
+   "Açık sözlü",
+   "Metodik",
+   "Sadık"
+  ],
+  "attrs_tr": [
+   "34",
+   "Zayıf",
+   "Dedektif",
+   "Şehirli"
+  ],
+  "voice_tr": "Jessica"
  },
  {
   "id": "theo",
@@ -155,6 +183,20 @@
     "pipes",
     "wrench"
    ]
-  }
+  },
+  "role_tr": "Gemi mühendisi",
+  "scenario_tr": "Jeneratörü bozulan bir araştırma gemisinde mahsur kaldınız; kullanıcı tamire yardım ediyor.",
+  "tags_tr": [
+   "Sıcakkanlı",
+   "Alaycı",
+   "Pratik"
+  ],
+  "attrs_tr": [
+   "41",
+   "Tıknaz",
+   "Mühendis",
+   "Kuzey şivesi"
+  ],
+  "voice_tr": "Brian"
  }
 ]

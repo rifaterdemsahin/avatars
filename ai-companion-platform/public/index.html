@@ -43,7 +43,7 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(-
 .tsnip{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .unread .tsnip{color:var(--fg);font-weight:500}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex:none;align-self:center}
-.topbar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.topbar{position:relative;display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line)}
 .topbar .grow{flex:1;min-width:0}
 .topbar small{color:var(--muted);display:block;font-size:12px}
 .btn{border:1px solid var(--line);background:var(--surface2);color:var(--fg);border-radius:8px;padding:6px 10px;font:inherit;font-size:12px;cursor:pointer}
@@ -114,39 +114,51 @@ pre{margin:0;font-family:var(--font-m);font-size:12.5px;line-height:1.6;backgrou
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto;transition:none!important}}
 .stream{overflow-y:auto}.stream img{max-width:78%;border-radius:12px;align-self:flex-start}.pane{min-height:0}.ctx{overflow-y:auto}.err{color:var(--warn);font-size:12px;align-self:center}</style></head><body><div class="wrap"><div class="app" id="app">
     <div class="pane">
-      <div class="pane-h"><span>Conversations</span><span id="count">3</span></div>
-      <input class="search" id="q" type="search" placeholder="Search contacts" aria-label="Search contacts">
+      <div class="pane-h"><span data-i="conversations">Conversations</span><span id="count">3</span></div>
+      <input class="search" id="q" type="search" placeholder="Search contacts" data-ph="search">
       <div class="threads" id="threads"></div>
     </div>
     <div class="pane">
       <div class="topbar">
         <div class="av" id="tav"></div>
         <div class="grow"><strong id="tname"></strong><small id="trole"></small></div>
-        <button class="btn" id="call" type="button">Call</button>
-        <button class="btn" type="button">Settings</button>
+        <button class="btn" id="call" type="button" data-i="call">Call</button>
+        <button class="btn" type="button" id="settingsBtn" data-i="settings">Settings</button>
+        <div id="settings" hidden style="position:absolute;right:12px;top:52px;z-index:5;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.18)"><label style="display:flex;justify-content:space-between;gap:12px;align-items:center"><span data-i="language">Language</span><select id="lang" class="btn"><option value="en">English</option><option value="tr">Türkçe</option></select></label><label style="display:flex;justify-content:space-between;gap:12px;align-items:center"><span data-i="emojis">Emojis 😊</span><input type="checkbox" id="emoji" checked></label></div>
       </div>
       <div class="stream" id="stream" aria-live="polite"></div>
       <div class="compose">
         <div class="chips">
-          <button class="chip" type="button" data-q="image">Show me the scene: Image</button>
-          <button class="chip" type="button" data-q="video">Show me the scene: Video</button>
+          <button class="chip" type="button" data-q="image" data-i="img">Show me the scene: Image</button>
+          <button class="chip" type="button" data-q="video" data-i="vid">Show me the scene: Video</button>
         </div>
         <form class="row" id="form">
-          <input id="msg" type="text" placeholder="Write a message" autocomplete="off" aria-label="Message">
-          <button class="btn primary" type="submit">Send</button>
+          <input id="msg" type="text" placeholder="Write a message" data-ph="msg" autocomplete="off">
+          <button class="btn primary" type="submit" data-i="send">Send</button>
         </form>
       </div>
     </div>
     <div class="pane">
-      <div class="pane-h"><span>Persona</span><span>Context</span></div>
+      <div class="pane-h"><span data-i="persona">Persona</span><span data-i="context">Context</span></div>
       <div class="gallery" id="gallery"></div>
       <div class="ctx">
-        <div><h3>Premise</h3><div id="premise"></div></div>
-        <div><h3>Attributes</h3><div class="attrs" id="attrs"></div></div>
-        <div><h3>Personality</h3><div class="tags" id="tags"></div></div>
+        <div><h3 data-i="premise">Premise</h3><div id="premise"></div></div>
+        <div><h3 data-i="attrs">Attributes</h3><div class="attrs" id="attrs"></div></div>
+        <div><h3 data-i="tags">Personality</h3><div class="tags" id="tags"></div></div>
       </div>
     </div>
-  </div></div><script>let P=[],cur=null,busy=false;const $=i=>document.getElementById(i);
+  </div></div><script>
+const T={en:{settings:'Settings',language:'Language',emojis:'Emojis 😊',conversations:'Conversations',persona:'Persona',context:'Context',call:'Call',img:'Show me the scene: Image',vid:'Show me the scene: Video',send:'Send',premise:'Premise',attrs:'Attributes',tags:'Personality',search:'Search contacts',msg:'Write a message',play:'Play voice',gen:'Generating...',aL:['Age','Build','Profession','Dialect'],eReply:'Reply failed: ',eImg:'Generation failed: ',eVoice:'Voice failed: ',call2:'Voice calls (WebRTC) arrive in phase 3.'},
+tr:{settings:'Ayarlar',language:'Dil',emojis:'Emojiler 😊',conversations:'Sohbetler',persona:'Karakter',context:'Bağlam',call:'Ara',img:'Sahneyi göster: Görsel',vid:'Sahneyi göster: Video',send:'Gönder',premise:'Senaryo',attrs:'Özellikler',tags:'Kişilik',search:'Kişi ara',msg:'Bir mesaj yaz',play:'Sesi çal',gen:'Üretiliyor...',aL:['Yaş','Yapı','Meslek','Şive'],eReply:'Yanıt alınamadı: ',eImg:'Üretim başarısız: ',eVoice:'Ses başarısız: ',call2:'Sesli aramalar (WebRTC) 3. aşamada gelecek.'}};
+let S={lang:'en',emoji:true};try{Object.assign(S,JSON.parse(localStorage.getItem('settings')||'{}'))}catch(e){}
+const t=k=>T[S.lang][k];
+const pv=(p,k)=>S.lang==='tr'&&p[k+'_tr']?p[k+'_tr']:p[k];
+function applyI18n(){document.documentElement.lang=S.lang;
+  document.querySelectorAll('[data-i]').forEach(e=>{if(e.dataset.i!=='call'||e.textContent!==t('call2'))e.textContent=t(e.dataset.i)});
+  document.querySelectorAll('[data-ph]').forEach(e=>{e.placeholder=t(e.dataset.ph);e.setAttribute('aria-label',t(e.dataset.ph))});
+  $('lang').value=S.lang;$('emoji').checked=S.emoji;if(P.length){renderThreads();if(cur)fillPersona()}}
+function saveS(){try{localStorage.setItem('settings',JSON.stringify(S))}catch(e){}}
+let P=[],cur=null,busy=false;const $=i=>document.getElementById(i);
 const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
 const api=async(u,o)=>{const r=await fetch(u,o);if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||r.status);return r};
@@ -156,34 +168,40 @@ function renderThreads(){
   const f=$('q').value.toLowerCase(),box=$('threads');box.innerHTML='';
   const list=P.filter(p=>p.name.toLowerCase().includes(f)||p.role.toLowerCase().includes(f));$('count').textContent=list.length;
   list.forEach(p=>{const b=document.createElement('button');b.className='thread';b.type='button';b.setAttribute('aria-pressed',p===cur);
-    b.innerHTML=`<div class="av" style="background:${p.color}">${p.name[0]}</div><div class="tmeta"><div class="tname"><span>${p.name}</span><time>${p.last?fmt(p.last.ts):''}</time></div><div class="tsnip">${esc(p.last?p.last.content:p.role)}</div></div>`;
+    b.innerHTML=`<div class="av" style="background:${p.color}">${p.name[0]}</div><div class="tmeta"><div class="tname"><span>${p.name}</span><time>${p.last?fmt(p.last.ts):''}</time></div><div class="tsnip">${esc(p.last?p.last.content:pv(p,'role'))}</div></div>`;
     b.onclick=()=>select(p);box.appendChild(b)})}
 function addMsg(m){
   const d=document.createElement('div');
   if(m.kind==='video'){d.innerHTML=`<video src="${m.content}" controls autoplay loop muted style="max-width:78%;border-radius:12px"></video>`;d.style.display='contents'}
   else if(m.kind==='image'){d.innerHTML=`<img src="${m.content}" alt="Generated scene">`;d.style.display='contents'}
-  else{d.className='msg'+(m.role==='user'?' me':'');d.innerHTML=esc(m.content)+(m.role!=='user'?'<div class="voice"><button class="btn" type="button" style="padding:2px 8px" data-play>Play voice</button></div>':'')+`<span class="ts">${fmt(m.ts)}</span>`}
+  else{d.className='msg'+(m.role==='user'?' me':'');d.innerHTML=esc(m.content)+(m.role!=='user'?'<div class="voice"><button class="btn" type="button" style="padding:2px 8px" data-play>'+t('play')+'</button></div>':'')+`<span class="ts">${fmt(m.ts)}</span>`}
   $('stream').appendChild(d);$('stream').scrollTop=1e6;return d}
+function fillPersona(){const p=cur;$('tav').style.background=p.color;$('tav').textContent=p.name[0];$('tname').textContent=p.name;$('trole').textContent=pv(p,'role');
+  $('premise').textContent=pv(p,'scenario');
+  const vals=S.lang==='tr'&&p.attrs_tr?p.attrs_tr:p.attrs.map(a=>a[1]);
+  $('attrs').innerHTML=vals.map((v,i)=>`<div class="attr"><b>${t('aL')[i]}</b>${v}</div>`).join('');
+  $('tags').innerHTML=pv(p,'tags').map(x=>`<span>${x}</span>`).join('')}
 async function select(p){cur=p;renderThreads();
-  $('tav').style.background=p.color;$('tav').textContent=p.name[0];$('tname').textContent=p.name;$('trole').textContent=p.role;
-  $('gallery').innerHTML='';$('premise').textContent=p.scenario;
-  $('attrs').innerHTML=p.attrs.map(a=>`<div class="attr"><b>${a[0]}</b>${a[1]}</div>`).join('');
-  $('tags').innerHTML=p.tags.map(t=>`<span>${t}</span>`).join('');
+  $('gallery').innerHTML='';fillPersona();
   $('stream').innerHTML='';const {messages}=await(await api('/api/chat/'+p.id)).json();
   messages.forEach(addMsg);$('gallery').innerHTML=messages.filter(m=>m.kind==='image').map(m=>`<img src="${m.content}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px" alt="">`).join('')}
 $('form').onsubmit=async e=>{e.preventDefault();const v=$('msg').value.trim();if(!v||busy)return;busy=true;$('msg').value='';
   addMsg({role:'user',kind:'text',content:v,ts:Date.now()});
-  try{const r=await(await post('/api/chat/'+cur.id,{text:v})).json();addMsg({role:'assistant',kind:'text',content:r.reply,ts:r.ts});cur.last={content:r.reply,ts:r.ts};renderThreads()}
-  catch(err){note('Reply failed: '+err.message)}busy=false};
+  try{const r=await(await post('/api/chat/'+cur.id,{text:v,lang:S.lang,emoji:S.emoji})).json();addMsg({role:'assistant',kind:'text',content:r.reply,ts:r.ts});cur.last={content:r.reply,ts:r.ts};renderThreads()}
+  catch(err){note(t('eReply')+err.message)}busy=false};
 document.querySelectorAll('.chip').forEach(c=>c.onclick=async()=>{
-  if(busy)return;busy=true;c.disabled=true;const old=c.textContent;c.textContent='Generating...';
+  if(busy)return;busy=true;c.disabled=true;const old=c.textContent;c.textContent=t('gen');
   try{const isV=c.dataset.q==='video';const r=await(await post('/api/'+(isV?'video/':'image/')+cur.id)).json();addMsg({role:'assistant',kind:isV?'video':'image',content:r.url});if(!isV)$('gallery').insertAdjacentHTML('afterbegin',`<img src="${r.url}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px" alt="">`)}
-  catch(err){note('Image failed: '+err.message)}c.textContent=old;c.disabled=false;busy=false});
+  catch(err){note(t('eImg')+err.message)}applyI18n();c.disabled=false;busy=false});
 $('stream').addEventListener('click',async e=>{const b=e.target;if(b.dataset.play===undefined)return;
   const text=b.closest('.msg').firstChild.textContent;b.textContent='Loading...';
-  try{const r=await post('/api/tts/'+cur.id,{text});const a=new Audio(URL.createObjectURL(await r.blob()));a.onended=()=>b.textContent='Play voice';await a.play();b.textContent='Playing'}
-  catch(err){b.textContent='Play voice';note('Voice failed: '+err.message)}});
-$('call').onclick=()=>note('Voice calls (WebRTC) arrive in phase 3.');
+  try{const r=await post('/api/tts/'+cur.id,{text,lang:S.lang});const a=new Audio(URL.createObjectURL(await r.blob()));a.onended=()=>b.textContent=t('play');await a.play();b.textContent='Playing'}
+  catch(err){b.textContent=t('play');note(t('eVoice')+err.message)}});
+$('call').onclick=()=>note(t('call2'));
 $('q').oninput=renderThreads;
+$('settingsBtn').onclick=()=>{$('settings').hidden=!$('settings').hidden};
+$('lang').onchange=e=>{S.lang=e.target.value;saveS();applyI18n()};
+$('emoji').onchange=e=>{S.emoji=e.target.checked;saveS()};
+applyI18n();
 (async()=>{P=await(await api('/api/personas')).json();renderThreads();select(P[0])})();
 </script></body></html>
