@@ -25,3 +25,9 @@ Status on 2026-11-10: **no top-up has been made.** Balance was $0.09 and is now 
 ## Tooling installed (2026-11-10)
 - `@e2b/cli` 2.23.0 (global). Works with `E2B_API_KEY` from `.env`, so `e2b auth login` is not needed. `e2b sandbox list` confirmed access. `e2b sandbox create base` opens an interactive terminal; run it yourself with `! e2b sandbox create base`.
 - `playwright` 1.65.0 (devDependency) with Chromium. `node e2b/local_probe.mjs` opens Venice locally and screenshots it: the page loads as "Venice Guest" (not logged in). The same page timed out inside the E2B sandbox, so run browser steps locally until that is solved.
+
+## Superpowers plugin (installed by the user)
+- Source: https://github.com/obra/superpowers, via marketplace `superpowers-dev` (`claude plugin marketplace add obra/superpowers`).
+- Installed by the user with `claude plugin install superpowers@superpowers-dev`: version 7.0.2, scope user, enabled. Claude's auto-mode check blocked the assistant from running the install, so it was done by hand.
+- Provides 15 skills (brainstorming, writing-plans, executing-plans, test-driven-development, systematic-debugging, requesting/receiving-code-review, verification-before-completion, using-git-worktrees, subagent-driven-development, and others), no agents, no MCP servers, and one SessionStart hook. About 848 tokens are added to every session.
+- Inspect: `claude plugin details superpowers`. Remove: `claude plugin uninstall superpowers@superpowers-dev` then `claude plugin marketplace remove superpowers-dev`.
