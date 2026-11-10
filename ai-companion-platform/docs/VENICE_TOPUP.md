@@ -1,6 +1,14 @@
 # Topping up Venice credits
 
-Status on 2026-11-10: **no top-up has been made.** Balance was $0.09 and is now exhausted; chat, images and video return HTTP 402 until credit is added.
+Status on 2026-11-10: **top-up completed by the user** via the Venice web dashboard (route below). Balance went from $0.09 to $4.24 USD (as read from `/api/balance`; the $5 purchase shows as slightly less than $5 net). Before the top-up, chat, images and video returned HTTP 402.
+
+## What worked: web dashboard + Google Pay
+1. Log in at https://venice.ai/settings/api (the user's own Chrome session).
+2. Click the card icon next to "New API Key" (button "Purchase Credits") to open **Add credits**.
+3. Presets start at $10; click **Enter a custom amount** and type `5` (shows 500 credits).
+4. Pay with **Google Pay** (approved by the user in their own browser) or a card typed by the user.
+5. Check with `GET /api/balance` in this app, or the `/balance` page.
+Notes: the assistant set the amount to $5 but did not enter any card details or complete the payment; card numbers are never stored by this project. No saved card existed on the Venice account.
 
 ## Options
 1. **Web dashboard (simplest):** https://venice.ai/settings/api, add credit by card or crypto (min. $5 for x402).
@@ -16,6 +24,9 @@ Status on 2026-11-10: **no top-up has been made.** Balance was $0.09 and is now 
 1. E2B key is stored in Azure Key Vault `dp-kv-deliverypilot` as `e2b-api-key` and `e2b-api-key-venice-topup`; the app reads `E2B_API_KEY` from `.env`.
 2. `POST /api/e2b/run` creates a sandbox, installs Playwright + Chromium (`PLAYWRIGHT_BROWSERS_PATH=/opt/pw`), runs `venice_probe.py`, returns logs and a screenshot, then kills the sandbox. The page `/e2b` has the button.
 3. Known issue: Venice's page did not finish loading inside the sandbox within the timeout (likely bot protection on datacenter IPs); not resolved.
+
+## E2B shutdown
+No sandboxes are running (`e2b sandbox list` shows none). Each run of `e2b/run.mjs` kills its sandbox in a `finally` block, so nothing stays up after a probe. The `/e2b` page and `E2B_API_KEY` remain available but idle.
 
 ## Missing before the E2B login + top-up can be completed
 - Vault secrets for the Venice login (none exist; only `VENICE-API-KEY`).
