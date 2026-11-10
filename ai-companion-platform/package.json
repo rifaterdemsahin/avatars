@@ -1,0 +1,1 @@
+{"name":"ai-companion-platform","type":"module","private":true,"scripts":{"start":"node --no-warnings server.js"}}
