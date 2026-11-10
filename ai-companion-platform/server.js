@@ -34,6 +34,7 @@ const venice = async (route, body) => {
   const r = await fetch('https://api.venice.ai/api/v1' + route, {
     method: 'POST', headers: { Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body)
   });
+  if (r.status === 402) throw new Error('NO_CREDIT');
   if (!r.ok) throw new Error(`Venice ${route} ${r.status}: ${(await r.text()).slice(0, 300)}`);
   return r;
 };
