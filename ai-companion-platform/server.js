@@ -3,6 +3,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { fileURLToPath } from 'node:url';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -25,9 +26,11 @@ const db = new DatabaseSync(path.join(root, 'data/companion.db'));
 db.exec(`
 CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, persona TEXT, role TEXT, kind TEXT DEFAULT 'text', content TEXT, ts INTEGER);
 CREATE TABLE IF NOT EXISTS memories(id INTEGER PRIMARY KEY, persona TEXT, fact TEXT, ts INTEGER);
+CREATE TABLE IF NOT EXISTS costs(id INTEGER PRIMARY KEY, ts INTEGER, route TEXT, model TEXT, usd REAL, tin INTEGER, tout INTEGER);
 CREATE TABLE IF NOT EXISTS scenarios(persona TEXT PRIMARY KEY, text TEXT);
 CREATE TABLE IF NOT EXISTS state(persona TEXT PRIMARY KEY, json TEXT);`);
 
+try { db.exec('ALTER TABLE messages ADD COLUMN cost REAL'); } catch {}
 const personas = JSON.parse(fs.readFileSync(path.join(root, 'personas.json'), 'utf8'));
 const P = Object.fromEntries(personas.map(p => [p.id, p]));
 
@@ -37,8 +40,34 @@ const venice = async (route, body) => {
   });
   if (r.status === 402) throw new Error('NO_CREDIT');
   if (!r.ok) throw new Error(`Venice ${route} ${r.status}: ${(await r.text()).slice(0, 300)}`);
+  await track(route, body, r);
   return r;
 };
+
+// Cost tracking. Estimate = tokens/characters/image count x Venice's published model price. Video has no published
+// price, so its cost is the drop in the x-venice-balance-usd header. Every call is added to a per-request list and a ledger.
+const als = new AsyncLocalStorage();
+const PRICE = {}; let balance = null;
+(async () => { for (const t of ['text', 'image', 'tts', 'video']) { try {
+  const r = await fetch('https://api.venice.ai/api/v1/models?type=' + t, { headers: { Authorization: 'Bearer ' + KEY } });
+  for (const m of (await r.json()).data || []) PRICE[m.id] = m.model_spec?.pricing || {};
+} catch {} } })();
+async function track(route, body, r) {
+  const b = parseFloat(r.headers.get('x-venice-balance-usd'));
+  const delta = balance != null && !isNaN(b) ? Math.max(0, balance - b) : null;
+  if (!isNaN(b)) balance = b;
+  const pr = PRICE[body.model] || {}; let usage = null, usd = null;
+  if (route === '/chat/completions') { try { usage = (await r.clone().json()).usage; } catch {}
+    if (usage) usd = (usage.prompt_tokens * (pr.input?.usd || 0) + usage.completion_tokens * (pr.output?.usd || 0)) / 1e6; }
+  else if (route === '/image/generate') usd = pr.generation?.usd ?? null;
+  else if (route === '/audio/speech') usd = (String(body.input).length * (pr.input?.usd || 0)) / 1e6;
+  if (usd == null) usd = delta; // video and anything without a published price
+  const call = { route, model: body.model, usd, tin: usage?.prompt_tokens || 0, tout: usage?.completion_tokens || 0 };
+  als.getStore()?.calls.push(call);
+  db.prepare('INSERT INTO costs(ts,route,model,usd,tin,tout) VALUES(?,?,?,?,?,?)').run(Date.now(), route, call.model, usd, call.tin, call.tout);
+  log(`[cost] ${route} ${call.model} $${(usd ?? 0).toFixed(5)} tokens ${call.tin}/${call.tout} balance=${balance}`);
+}
+const reqCost = () => { const c = als.getStore()?.calls || []; return { usd: c.reduce((a, x) => a + (x.usd || 0), 0), calls: c.length, tin: c.reduce((a, x) => a + x.tin, 0), tout: c.reduce((a, x) => a + x.tout, 0) }; };
 
 const customScenario = id => db.prepare('SELECT text FROM scenarios WHERE persona=?').get(id)?.text || null;
 const scenarioOf = id => customScenario(id) || P[id].scenario;
@@ -46,7 +75,7 @@ const getState = id => ({ affection_level: 1, agreed_plans: [], scene: P[id].sce
 const setState = (id, st) => db.prepare('INSERT OR REPLACE INTO state(persona,json) VALUES(?,?)').run(id, JSON.stringify(st));
 const log = (...a) => { const l = new Date().toISOString() + ' ' + a.join(' '); console.log(l); fs.appendFileSync(path.join(root, 'data/prompts.log'), l + '\n'); };
 const history = id => db.prepare('SELECT role,kind,content,ts FROM messages WHERE persona=? ORDER BY id DESC LIMIT ?').all(id, TURNS).reverse();
-const save = (id, role, kind, content) => db.prepare('INSERT INTO messages(persona,role,kind,content,ts) VALUES(?,?,?,?,?)').run(id, role, kind, content, Date.now());
+const save = (id, role, kind, content, cost = null) => db.prepare('INSERT INTO messages(persona,role,kind,content,ts,cost) VALUES(?,?,?,?,?,?)').run(id, role, kind, content, Date.now(), cost);
 
 // Episodic memory: keyword retrieval (swap for pgvector/embeddings later).
 function recall(id, text) {
@@ -127,11 +156,18 @@ const json = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'applic
 const readBody = req => new Promise(ok => { let b = ''; req.on('data', c => b += c); req.on('end', () => ok(b ? JSON.parse(b) : {})); });
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.mp3': 'audio/mpeg', '.mp4': 'video/mp4' };
 
-http.createServer(async (req, res) => {
+const handle = async (req, res) => {
   const url = new URL(req.url, 'http://x'); let m;
   try {
     if (url.pathname === '/api/pay-config') { // PAYMENT_URL e.g. https://paypal.me/yourname or a Stripe payment link
       return json(res, 200, { url: process.env.PAYMENT_URL || null, payee: process.env.PAYEE || null });
+    }
+    if (url.pathname === '/api/costs') { // running totals for the UI
+      if (balance == null) { const d = ((await (await fetch('https://api.venice.ai/api/v1/api_keys/rate_limits', { headers: { Authorization: 'Bearer ' + KEY } })).json()).data) || {}; balance = d.balances?.USD ?? null; }
+      const day = new Date(); day.setHours(0, 0, 0, 0);
+      const one = q => db.prepare(q).get(day.getTime()) || {};
+      return json(res, 200, { balance, today: one('SELECT COALESCE(SUM(usd),0) usd, COUNT(*) n FROM costs WHERE ts>=?'),
+        byRoute: db.prepare('SELECT route, COUNT(*) n, ROUND(SUM(usd),5) usd FROM costs WHERE ts>=? GROUP BY route').all(day.getTime()) });
     }
     if (url.pathname === '/api/balance') { // balance of the API key in .env (key never leaves the server)
       const r = await fetch('https://api.venice.ai/api/v1/api_keys/rate_limits', { headers: { Authorization: 'Bearer ' + KEY } });
@@ -170,7 +206,7 @@ http.createServer(async (req, res) => {
     }
     if ((m = url.pathname.match(/^\/api\/chat\/(\w+)$/))) {
       const id = m[1], p = P[id]; if (!p) return json(res, 404, { error: 'unknown persona' });
-      if (req.method === 'GET') return json(res, 200, { messages: db.prepare('SELECT role,kind,content,ts FROM messages WHERE persona=? ORDER BY id').all(id), state: getState(id) });
+      if (req.method === 'GET') return json(res, 200, { messages: db.prepare('SELECT role,kind,content,ts,cost FROM messages WHERE persona=? ORDER BY id').all(id), state: getState(id) });
       const { text, lang, emoji } = await readBody(req);
       await sceneQ[id];
       save(id, 'user', 'text', text);
@@ -180,10 +216,11 @@ http.createServer(async (req, res) => {
       if ((p.speaks || lang) === 'tr') { msgs.at(-1).content += '\n\n[Rol gereği yalnızca Türkçe yanıt ver. Reply ONLY in Turkish.]'; msgs.push({ role: 'system', content: 'Sadece Türkçe yaz. Your next reply must be entirely in Turkish.' }); } // history in English would otherwise pull replies to English
       const out = await (await venice('/chat/completions', { model: (p.speaks || lang) === 'tr' ? CHAT_MODEL_TR : CHAT_MODEL, messages: msgs, temperature: 0.9, max_tokens: 300 })).json();
       const reply = out.choices[0].message.content.trim();
-      save(id, 'assistant', 'text', reply);
+      const cost = reqCost();
+      save(id, 'assistant', 'text', reply, cost.usd);
       queueScene(id);
       if (db.prepare("SELECT COUNT(*) c FROM messages WHERE persona=? AND role='user'").get(id).c % 4 === 0) extract(id);
-      return json(res, 200, { reply, ts: Date.now() });
+      return json(res, 200, { reply, ts: Date.now(), cost, balance });
     }
     if ((m = url.pathname.match(/^\/api\/image\/(\w+)$/))) {
       const id = m[1], p = P[id]; if (!p) return json(res, 404, { error: 'unknown persona' });
@@ -193,8 +230,9 @@ http.createServer(async (req, res) => {
       const r = await (await venice('/image/generate', { model: IMAGE_MODEL, prompt: sp.prompt, negative_prompt: sp.negative_prompt, seed: sp.seed, width: 1024, height: 640, format: 'png', safe_mode: true, return_binary: false })).json();
       const file = `${id}-${Date.now()}.png`;
       fs.writeFileSync(path.join(root, 'data/assets', file), Buffer.from(r.images[0], 'base64'));
-      save(id, 'assistant', 'image', '/assets/' + file);
-      return json(res, 200, { url: '/assets/' + file });
+      const cost = reqCost();
+      save(id, 'assistant', 'image', '/assets/' + file, cost.usd);
+      return json(res, 200, { url: '/assets/' + file, cost, balance });
     }
     if ((m = url.pathname.match(/^\/api\/video\/(\w+)$/))) {
       const id = m[1], p = P[id]; if (!p) return json(res, 404, { error: 'unknown persona' });
@@ -208,8 +246,9 @@ http.createServer(async (req, res) => {
         if ((r.headers.get('content-type') || '').includes('video')) {
           const file = `${id}-${Date.now()}.mp4`;
           fs.writeFileSync(path.join(root, 'data/assets', file), Buffer.from(await r.arrayBuffer()));
-          save(id, 'assistant', 'video', '/assets/' + file);
-          return json(res, 200, { url: '/assets/' + file });
+          const cost = reqCost();
+          save(id, 'assistant', 'video', '/assets/' + file, cost.usd);
+          return json(res, 200, { url: '/assets/' + file, cost, balance });
         }
         const st = await r.json(); log(`[video ${id}] status`, st.status || JSON.stringify(st).slice(0, 80));
         if (/fail|error/i.test(st.status || '')) throw new Error('video failed');
@@ -220,7 +259,7 @@ http.createServer(async (req, res) => {
       const p = P[m[1]]; const { text, lang } = await readBody(req);
       const tr = (p.speaks || lang) === 'tr'; // Kokoro has no Turkish; use the multilingual ElevenLabs model
       const r = await venice('/audio/speech', { model: tr ? TTS_MODEL_TR : TTS_MODEL, input: text.slice(0, 1000), voice: tr ? p.voice_tr : p.voice, response_format: 'mp3' });
-      res.writeHead(200, { 'Content-Type': 'audio/mpeg' });
+      res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'X-Cost-USD': String(reqCost().usd), 'Access-Control-Expose-Headers': 'X-Cost-USD' });
       return res.end(Buffer.from(await r.arrayBuffer()));
     }
     // static
@@ -231,4 +270,5 @@ http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': MIME[path.extname(full)] || 'application/octet-stream' });
     fs.createReadStream(full).pipe(res);
   } catch (e) { console.error(e.message); json(res, 500, { error: e.message }); }
-}).listen(PORT, () => console.log(`Companion platform on http://localhost:${PORT} (chat=${CHAT_MODEL}, image=${IMAGE_MODEL}, tts=${TTS_MODEL})`));
+};
+http.createServer((req, res) => als.run({ calls: [] }, () => handle(req, res))).listen(PORT, () => console.log(`Companion platform on http://localhost:${PORT} (chat=${CHAT_MODEL}, image=${IMAGE_MODEL}, tts=${TTS_MODEL})`));

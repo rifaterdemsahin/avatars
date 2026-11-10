@@ -112,14 +112,14 @@ pre{margin:0;font-family:var(--font-m);font-size:12.5px;line-height:1.6;backgrou
   .thread{min-width:200px;border-bottom:0;border-right:1px solid var(--line)}
 }
 @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto;transition:none!important}}
-.stream{overflow-y:auto}.stream img{max-width:78%;border-radius:12px;align-self:flex-start}.pane{min-height:0}.ctx{overflow-y:auto}.err{color:var(--warn);font-size:12px;align-self:center}.stream img,#gallery img{cursor:zoom-in}
+.stream{overflow-y:auto}.stream img{max-width:78%;border-radius:12px;align-self:flex-start}.pane{min-height:0}.ctx{overflow-y:auto}.cost{align-self:flex-start;font:10px 'JetBrains Mono',monospace;color:var(--muted)}.err{color:var(--warn);font-size:12px;align-self:center}.stream img,#gallery img{cursor:zoom-in}
 #lb{position:fixed;inset:0;z-index:50;background:rgba(8,9,14,.88);display:flex;align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) 16px 16px}
 #lb[hidden]{display:none}
 #lb img{max-width:min(96vw,1400px);max-height:88vh;border-radius:10px;box-shadow:0 10px 50px rgba(0,0,0,.6);cursor:default}
 #lb button{position:absolute;background:rgba(255,255,255,.14);color:#fff;border:0;border-radius:999px;width:42px;height:42px;font-size:20px;cursor:pointer}
 #lb button:hover{background:rgba(255,255,255,.28)}
 #lb .x{top:max(14px,env(safe-area-inset-top));right:16px}#lb .p{left:14px;top:50%}#lb .n{right:14px;top:50%}
-</style></head><body><div class="wrap"><div class="app" id="app">
+[hidden]{display:none!important}</style></head><body><div class="wrap"><div class="app" id="app">
     <div class="pane">
       <div class="pane-h"><span data-i="conversations">Conversations</span><span id="count">3</span></div>
       <input class="search" id="q" type="search" placeholder="Search contacts" data-ph="search">
@@ -139,6 +139,7 @@ pre{margin:0;font-family:var(--font-m);font-size:12.5px;line-height:1.6;backgrou
           <button class="chip" type="button" data-q="image" data-i="img">Show me the scene: Image</button>
           <button class="chip" type="button" data-q="video" data-i="vid">Show me the scene: Video</button>
         </div>
+        <div class="note" id="costbar" style="font-family:var(--font-m);font-size:11px"></div>
         <form class="row" id="form">
           <input id="msg" type="text" autofocus placeholder="Write a message" data-ph="msg" autocomplete="off">
           <button class="btn primary" type="submit" data-i="send">Send</button>
@@ -155,8 +156,8 @@ pre{margin:0;font-family:var(--font-m);font-size:12.5px;line-height:1.6;backgrou
       </div>
     </div>
   </div></div><div id="lb" hidden role="dialog" aria-modal="true" aria-label="Image viewer"><button class="x" type="button" aria-label="Close">✕</button><button class="p" type="button" aria-label="Previous">‹</button><img id="lbi" alt=""><button class="n" type="button" aria-label="Next">›</button></div><script>
-const T={en:{noCredit:'Venice credit has run out. Add credit to continue.',topup:'Add credit',edit:'Edit',save:'Save',reset:'Reset to default',cancel:'Cancel',scSaved:'Scenario updated',settings:'Settings',language:'Language',emojis:'Emojis 😊',pay:'Payment request',bal:'Balance',conversations:'Conversations',persona:'Persona',context:'Context',call:'Call',img:'Show me the scene: Image',vid:'Show me the scene: Video',send:'Send',premise:'Premise',attrs:'Attributes',tags:'Personality',search:'Search contacts',msg:'Write a message',play:'Play voice',gen:'Generating...',aL:['Age','Build','Profession','Dialect'],eReply:'Reply failed: ',eImg:'Generation failed: ',eVoice:'Voice failed: ',call2:'Voice calls (WebRTC) arrive in phase 3.'},
-tr:{noCredit:'Venice kredisi bitti. Devam etmek için bakiye yükleyin.',topup:'Bakiye yükle',edit:'Düzenle',save:'Kaydet',reset:'Varsayılana dön',cancel:'İptal',scSaved:'Senaryo güncellendi',settings:'Ayarlar',language:'Dil',emojis:'Emojiler 😊',pay:'Ödeme talebi',bal:'Bakiye',conversations:'Sohbetler',persona:'Karakter',context:'Bağlam',call:'Ara',img:'Sahneyi göster: Görsel',vid:'Sahneyi göster: Video',send:'Gönder',premise:'Senaryo',attrs:'Özellikler',tags:'Kişilik',search:'Kişi ara',msg:'Bir mesaj yaz',play:'Sesi çal',gen:'Üretiliyor...',aL:['Yaş','Yapı','Meslek','Şive'],eReply:'Yanıt alınamadı: ',eImg:'Üretim başarısız: ',eVoice:'Ses başarısız: ',call2:'Sesli aramalar (WebRTC) 3. aşamada gelecek.'}};
+const T={en:{balance:'Balance',today:'Spent today',calls:'calls',noCredit:'Venice credit has run out. Add credit to continue.',topup:'Add credit',edit:'Edit',save:'Save',reset:'Reset to default',cancel:'Cancel',scSaved:'Scenario updated',settings:'Settings',language:'Language',emojis:'Emojis 😊',pay:'Payment request',bal:'Balance',conversations:'Conversations',persona:'Persona',context:'Context',call:'Call',img:'Show me the scene: Image',vid:'Show me the scene: Video',send:'Send',premise:'Premise',attrs:'Attributes',tags:'Personality',search:'Search contacts',msg:'Write a message',play:'Play voice',gen:'Generating...',aL:['Age','Build','Profession','Dialect'],eReply:'Reply failed: ',eImg:'Generation failed: ',eVoice:'Voice failed: ',call2:'Voice calls (WebRTC) arrive in phase 3.'},
+tr:{balance:'Bakiye',today:'Bugünkü masraf',calls:'istek',noCredit:'Venice kredisi bitti. Devam etmek için bakiye yükleyin.',topup:'Bakiye yükle',edit:'Düzenle',save:'Kaydet',reset:'Varsayılana dön',cancel:'İptal',scSaved:'Senaryo güncellendi',settings:'Ayarlar',language:'Dil',emojis:'Emojiler 😊',pay:'Ödeme talebi',bal:'Bakiye',conversations:'Sohbetler',persona:'Karakter',context:'Bağlam',call:'Ara',img:'Sahneyi göster: Görsel',vid:'Sahneyi göster: Video',send:'Gönder',premise:'Senaryo',attrs:'Özellikler',tags:'Kişilik',search:'Kişi ara',msg:'Bir mesaj yaz',play:'Sesi çal',gen:'Üretiliyor...',aL:['Yaş','Yapı','Meslek','Şive'],eReply:'Yanıt alınamadı: ',eImg:'Üretim başarısız: ',eVoice:'Ses başarısız: ',call2:'Sesli aramalar (WebRTC) 3. aşamada gelecek.'}};
 let S={lang:'en',emoji:true};try{Object.assign(S,JSON.parse(localStorage.getItem('settings')||'{}'))}catch(e){}
 const t=k=>T[S.lang][k];
 const pv=(p,k)=>S.lang==='tr'&&p[k+'_tr']?p[k+'_tr']:p[k];
@@ -165,6 +166,9 @@ function applyI18n(){document.documentElement.lang=S.lang;
   document.querySelectorAll('[data-ph]').forEach(e=>{e.placeholder=t(e.dataset.ph);e.setAttribute('aria-label',t(e.dataset.ph))});
   $('lang').value=S.lang;$('emoji').checked=S.emoji;if(P.length){renderThreads();if(cur)fillPersona()}}
 function saveS(){try{localStorage.setItem('settings',JSON.stringify(S))}catch(e){}}
+const usd=n=>n==null?'':'$'+(n<0.01?n.toFixed(4):n.toFixed(3));
+async function refreshCosts(){try{const c=await(await api('/api/costs')).json();
+  $('costbar').textContent=`${t('balance')} ${usd(c.balance)} · ${t('today')} ${usd(c.today.usd)} (${c.today.n} ${t('calls')})`}catch(e){}}
 let P=[],cur=null,busy=false;const focusMsg=()=>{try{if(document.activeElement!==$('q'))$('msg').focus()}catch(e){}};const $=i=>document.getElementById(i);
 const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
@@ -181,8 +185,8 @@ function addMsg(m){
   const d=document.createElement('div');
   if(m.kind==='note'){d.className='err';d.textContent=m.content}
   else if(m.kind==='video'){d.innerHTML=`<video src="${m.content}" controls autoplay loop muted style="max-width:78%;border-radius:12px"></video>`;d.style.display='contents'}
-  else if(m.kind==='image'){d.innerHTML=`<img src="${m.content}" alt="Generated scene">`;d.style.display='contents'}
-  else{d.className='msg'+(m.role==='user'?' me':'');d.innerHTML=esc(m.content)+(m.role!=='user'?'<div class="voice"><button class="btn" type="button" style="padding:2px 8px" data-play>'+t('play')+'</button></div>':'')+`<span class="ts">${fmt(m.ts)}</span>`}
+  else if(m.kind==='image'){d.innerHTML=`<img src="${m.content}" alt="Generated scene">`+(m.cost!=null?`<div class="cost">${usd(m.cost)}</div>`:'');d.style.display='contents'}
+  else{d.className='msg'+(m.role==='user'?' me':'');d.innerHTML=esc(m.content)+(m.role!=='user'?'<div class="voice"><button class="btn" type="button" style="padding:2px 8px" data-play>'+t('play')+'</button></div>':'')+`<span class="ts">${fmt(m.ts)}${m.cost!=null&&m.role!=='user'?' · '+usd(m.cost):''}</span>`}
   $('stream').appendChild(d);$('stream').scrollTop=1e6;return d}
 function fillPersona(){const p=cur;$('tav').style.background=p.color;$('tav').textContent=p.name[0];$('tname').textContent=p.name;$('trole').textContent=pv(p,'role');
   $('premise').textContent=pv(p,'scenario');
@@ -192,18 +196,18 @@ function fillPersona(){const p=cur;$('tav').style.background=p.color;$('tav').te
 async function select(p){cur=p;renderThreads();
   $('gallery').innerHTML='';fillPersona();
   $('stream').innerHTML='';const {messages}=await(await api('/api/chat/'+p.id)).json();
-  messages.forEach(addMsg);focusMsg();$('gallery').innerHTML=messages.filter(m=>m.kind==='image').map(m=>`<img src="${m.content}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px" alt="">`).join('')}
+  messages.forEach(addMsg);focusMsg();setTimeout(toBottom,300);$('gallery').innerHTML=messages.filter(m=>m.kind==='image').map(m=>`<img src="${m.content}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px" alt="">`).join('')}
 $('form').onsubmit=async e=>{e.preventDefault();const v=$('msg').value.trim();if(!v||busy)return;busy=true;$('msg').value='';
   addMsg({role:'user',kind:'text',content:v,ts:Date.now()});
-  try{const r=await(await post('/api/chat/'+cur.id,{text:v,lang:S.lang,emoji:S.emoji})).json();addMsg({role:'assistant',kind:'text',content:r.reply,ts:r.ts});cur.last={content:r.reply,ts:r.ts};renderThreads()}
+  try{const r=await(await post('/api/chat/'+cur.id,{text:v,lang:S.lang,emoji:S.emoji})).json();addMsg({role:'assistant',kind:'text',content:r.reply,ts:r.ts,cost:r.cost.usd});refreshCosts();cur.last={content:r.reply,ts:r.ts};renderThreads()}
   catch(err){note(t('eReply')+err.message)}busy=false;focusMsg()};
 document.querySelectorAll('.chip').forEach(c=>c.onclick=async()=>{
   if(busy)return;busy=true;c.disabled=true;const old=c.textContent;c.textContent=t('gen');
-  try{const isV=c.dataset.q==='video';const r=await(await post('/api/'+(isV?'video/':'image/')+cur.id)).json();addMsg({role:'assistant',kind:isV?'video':'image',content:r.url});if(!isV)$('gallery').insertAdjacentHTML('afterbegin',`<img src="${r.url}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px" alt="">`)}
+  try{const isV=c.dataset.q==='video';const r=await(await post('/api/'+(isV?'video/':'image/')+cur.id)).json();addMsg({role:'assistant',kind:isV?'video':'image',content:r.url,cost:r.cost.usd});refreshCosts();if(!isV)$('gallery').insertAdjacentHTML('afterbegin',`<img src="${r.url}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px" alt="">`)}
   catch(err){note(t('eImg')+err.message)}applyI18n();c.disabled=false;busy=false;focusMsg()});
 $('stream').addEventListener('click',async e=>{const b=e.target;if(b.dataset.play===undefined)return;
   const text=b.closest('.msg').firstChild.textContent;b.textContent='Loading...';
-  try{const r=await post('/api/tts/'+cur.id,{text,lang:S.lang});const a=new Audio(URL.createObjectURL(await r.blob()));a.onended=()=>b.textContent=t('play');await a.play();b.textContent='Playing'}
+  try{const r=await post('/api/tts/'+cur.id,{text,lang:S.lang});const c=parseFloat(r.headers.get('X-Cost-USD'));if(c>=0)b.insertAdjacentHTML('afterend',` <span class="ts">${usd(c)}</span>`);refreshCosts();const a=new Audio(URL.createObjectURL(await r.blob()));a.onended=()=>b.textContent=t('play');await a.play();b.textContent='Playing'}
   catch(err){b.textContent=t('play');note(t('eVoice')+err.message)}});
 $('call').onclick=()=>note(t('call2'));
 
@@ -227,10 +231,15 @@ async function scSend(text){$('scSave').disabled=$('scReset').disabled=true;
   catch(e){note(e.message)}$('scSave').disabled=$('scReset').disabled=false}
 $('scSave').onclick=()=>scSend($('scText').value.trim());
 $('scReset').onclick=()=>scSend('');
+
+// Always keep the newest message in view: on new nodes, when images/videos finish loading, and after switching characters.
+const toBottom=()=>{const s=$('stream');s.scrollTop=s.scrollHeight};
+new MutationObserver(()=>{toBottom();requestAnimationFrame(toBottom)}).observe($('stream'),{childList:true,subtree:true});
+$('stream').addEventListener('load',toBottom,true);$('stream').addEventListener('loadeddata',toBottom,true);
 $('q').oninput=renderThreads;
 $('settingsBtn').onclick=()=>{$('settings').hidden=!$('settings').hidden};
 $('lang').onchange=e=>{S.lang=e.target.value;saveS();applyI18n()};
 $('emoji').onchange=e=>{S.emoji=e.target.checked;saveS()};
 applyI18n();
-(async()=>{P=await(await api('/api/personas')).json();renderThreads();select(P[0])})();
+refreshCosts();(async()=>{P=await(await api('/api/personas')).json();renderThreads();select(P[0])})();
 </script></body></html>
