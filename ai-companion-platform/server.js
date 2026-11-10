@@ -125,6 +125,10 @@ const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css
 http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   try {
+    if (url.pathname === '/api/pay-config') { // PAYMENT_URL e.g. https://paypal.me/yourname or a Stripe payment link
+      return json(res, 200, { url: process.env.PAYMENT_URL || null, payee: process.env.PAYEE || null });
+    }
+    if (url.pathname === '/pay') url.pathname = '/pay.html';
     if (url.pathname === '/api/personas') {
       return json(res, 200, personas.map(p => { const h = history(p.id); const last = h.at(-1); return { ...p, boundaries: undefined, visual: undefined, scene0: undefined, last: last ? { content: last.kind === 'text' ? last.content : `[${last.kind}]`, ts: last.ts } : null }; }));
     }

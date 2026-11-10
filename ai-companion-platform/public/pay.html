@@ -1,0 +1,45 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Payment Request</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+:root{--bg:#f4f5f8;--surface:#fff;--fg:#1b1d2a;--muted:#5d6177;--line:#d9dce8;--accent:#5b4bdb;--ok:#0f8b4d}
+@media (prefers-color-scheme:dark){:root{--bg:#12131c;--surface:#1b1d2b;--fg:#e8e9f2;--muted:#9a9eb8;--line:#2f3248;--accent:#9d92ff;--ok:#4cd08a;color-scheme:dark}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font-family:Inter,system-ui,sans-serif;min-height:100vh;display:grid;place-items:center;padding:16px}
+.card{width:100%;max-width:440px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:28px;display:flex;flex-direction:column;gap:18px}
+h1{font-family:'Space Grotesk',sans-serif;font-size:22px;margin:0}
+.amt{font-family:'Space Grotesk',sans-serif;font-size:56px;font-weight:700;letter-spacing:-.02em;line-height:1}
+.amt small{font-size:18px;color:var(--muted);font-weight:500;margin-left:6px}
+dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:14px}dt{color:var(--muted)}dd{margin:0;text-align:right;word-break:break-word}
+.btn{display:block;text-align:center;border:0;border-radius:10px;padding:13px;font:600 15px Inter,sans-serif;cursor:pointer;text-decoration:none;background:var(--accent);color:#fff}
+.btn.sec{background:none;border:1px solid var(--line);color:var(--fg);font-weight:500}
+.btn[aria-disabled=true]{opacity:.45;pointer-events:none}
+.msg{font-size:13px;color:var(--muted)}.ok{color:var(--ok)}a.back{color:var(--accent);font-size:13px;text-decoration:none}
+</style></head><body>
+<main class="card">
+  <a class="back" href="/">← <span data-i="back">Back to chat</span></a>
+  <h1 data-i="title">Payment request</h1>
+  <div class="amt" id="amt">$5.00<small>USD</small></div>
+  <dl>
+    <dt data-i="for">For</dt><dd id="for">Venice API credits (video generation)</dd>
+    <dt data-i="to">Pay to</dt><dd id="payee">-</dd>
+    <dt data-i="status">Status</dt><dd id="status">-</dd>
+  </dl>
+  <a class="btn" id="pay" href="#" target="_blank" rel="noopener" aria-disabled="true" data-i="payBtn">Pay $5.00</a>
+  <button class="btn sec" id="copy" type="button" data-i="copy">Copy request text</button>
+  <p class="msg" id="msg"></p>
+</main>
+<script>
+const T={en:{back:'Back to chat',title:'Payment request',for:'For',to:'Pay to',status:'Status',payBtn:'Pay $5.00',copy:'Copy request text',none:'No payment link is configured yet. Set PAYMENT_URL (and PAYEE) in .env and restart the server.',pending:'Awaiting payment',copied:'Copied ✓',text:'Payment request: $5.00 USD for Venice API credits (video generation).'},
+tr:{back:'Sohbete dön',title:'Ödeme talebi',for:'Açıklama',to:'Alıcı',status:'Durum',payBtn:'$5.00 öde',copy:'Talep metnini kopyala',none:'Henüz bir ödeme bağlantısı ayarlanmadı. .env içine PAYMENT_URL (ve PAYEE) ekleyip sunucuyu yeniden başlatın.',pending:'Ödeme bekleniyor',copied:'Kopyalandı ✓',text:'Ödeme talebi: Venice API kredileri (video üretimi) için 5,00 USD.'}};
+let lang='en';try{lang=JSON.parse(localStorage.getItem('settings')||'{}').lang==='tr'?'tr':'en'}catch(e){}
+const t=k=>T[lang][k],$=i=>document.getElementById(i);
+document.documentElement.lang=lang;document.querySelectorAll('[data-i]').forEach(e=>e.textContent=t(e.dataset.i));
+const q=new URLSearchParams(location.search),amount=Math.max(1,Math.min(500,+q.get('amount')||5)).toFixed(2);
+$('amt').innerHTML=`$${amount}<small>USD</small>`;$('pay').textContent=t('payBtn').replace('5.00',amount);
+if(q.get('for'))$('for').textContent=q.get('for').slice(0,120);
+fetch('/api/pay-config').then(r=>r.json()).then(c=>{
+  $('payee').textContent=c.payee||'-';$('status').textContent=t('pending');
+  if(c.url){let u=c.url;if(/paypal\.me\//.test(u))u=u.replace(/\/+$/,'')+'/'+amount+'USD';
+    $('pay').href=u;$('pay').removeAttribute('aria-disabled')}else $('msg').textContent=t('none')});
+$('copy').onclick=async()=>{const txt=t('text').replace('5.00',amount)+(location.href?' '+location.href:'');
+  try{await navigator.clipboard.writeText(txt);$('msg').textContent=t('copied');$('msg').className='msg ok'}catch(e){$('msg').textContent=txt}};
+</script></body></html>
