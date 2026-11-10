@@ -160,7 +160,8 @@ function renderThreads(){
     b.onclick=()=>select(p);box.appendChild(b)})}
 function addMsg(m){
   const d=document.createElement('div');
-  if(m.kind==='image'){d.innerHTML=`<img src="${m.content}" alt="Generated scene">`;d.style.display='contents'}
+  if(m.kind==='video'){d.innerHTML=`<video src="${m.content}" controls autoplay loop muted style="max-width:78%;border-radius:12px"></video>`;d.style.display='contents'}
+  else if(m.kind==='image'){d.innerHTML=`<img src="${m.content}" alt="Generated scene">`;d.style.display='contents'}
   else{d.className='msg'+(m.role==='user'?' me':'');d.innerHTML=esc(m.content)+(m.role!=='user'?'<div class="voice"><button class="btn" type="button" style="padding:2px 8px" data-play>Play voice</button></div>':'')+`<span class="ts">${fmt(m.ts)}</span>`}
   $('stream').appendChild(d);$('stream').scrollTop=1e6;return d}
 async function select(p){cur=p;renderThreads();
@@ -175,9 +176,8 @@ $('form').onsubmit=async e=>{e.preventDefault();const v=$('msg').value.trim();if
   try{const r=await(await post('/api/chat/'+cur.id,{text:v})).json();addMsg({role:'assistant',kind:'text',content:r.reply,ts:r.ts});cur.last={content:r.reply,ts:r.ts};renderThreads()}
   catch(err){note('Reply failed: '+err.message)}busy=false};
 document.querySelectorAll('.chip').forEach(c=>c.onclick=async()=>{
-  if(c.dataset.q==='video'){note('Video generation arrives in phase 3.');return}
   if(busy)return;busy=true;c.disabled=true;const old=c.textContent;c.textContent='Generating...';
-  try{const r=await(await post('/api/image/'+cur.id)).json();addMsg({role:'assistant',kind:'image',content:r.url});$('gallery').insertAdjacentHTML('afterbegin',`<img src="${r.url}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px" alt="">`)}
+  try{const isV=c.dataset.q==='video';const r=await(await post('/api/'+(isV?'video/':'image/')+cur.id)).json();addMsg({role:'assistant',kind:isV?'video':'image',content:r.url});if(!isV)$('gallery').insertAdjacentHTML('afterbegin',`<img src="${r.url}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px" alt="">`)}
   catch(err){note('Image failed: '+err.message)}c.textContent=old;c.disabled=false;busy=false});
 $('stream').addEventListener('click',async e=>{const b=e.target;if(b.dataset.play===undefined)return;
   const text=b.closest('.msg').firstChild.textContent;b.textContent='Loading...';
