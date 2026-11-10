@@ -118,12 +118,13 @@ function scenePrompt(id) {
   return { prompt: prompt.slice(0, 1400), negative_prompt: neg.join(', '), seed };
 }
 
+const jobs = {};
 const json = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
 const readBody = req => new Promise(ok => { let b = ''; req.on('data', c => b += c); req.on('end', () => ok(b ? JSON.parse(b) : {})); });
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.mp3': 'audio/mpeg', '.mp4': 'video/mp4' };
 
 http.createServer(async (req, res) => {
-  const url = new URL(req.url, 'http://x');
+  const url = new URL(req.url, 'http://x'); let m;
   try {
     if (url.pathname === '/api/pay-config') { // PAYMENT_URL e.g. https://paypal.me/yourname or a Stripe payment link
       return json(res, 200, { url: process.env.PAYMENT_URL || null, payee: process.env.PAYEE || null });
@@ -133,12 +134,19 @@ http.createServer(async (req, res) => {
       const d = (await r.json()).data || {};
       return json(res, 200, { tier: d.apiTier?.id, balances: d.balances, accessPermitted: d.accessPermitted });
     }
+    if (url.pathname === '/api/e2b/run' && req.method === 'POST') { // dry-run probe of the Venice login page in an E2B sandbox; never pays
+      const jid = String(Date.now()); jobs[jid] = { log: [], done: false };
+      import('./e2b/run.mjs').then(m => m.runProbe({ apiKey: process.env.E2B_API_KEY, root, log: l => jobs[jid].log.push(l) }))
+        .then(r => { jobs[jid].result = r; }).catch(e => { jobs[jid].error = String(e.message).slice(0, 300); }).finally(() => { jobs[jid].done = true; });
+      return json(res, 200, { job: jid });
+    }
+    if ((m = url.pathname.match(/^\/api\/e2b\/job\/(\d+)$/))) return json(res, 200, jobs[m[1]] || { error: 'unknown job', done: true });
+    if (url.pathname === '/e2b') url.pathname = '/e2b.html';
     if (url.pathname === '/pay') url.pathname = '/pay.html';
     if (url.pathname === '/balance') url.pathname = '/balance.html';
     if (url.pathname === '/api/personas') {
       return json(res, 200, personas.map(p => { const h = history(p.id); const last = h.at(-1); return { ...p, boundaries: undefined, visual: undefined, scene0: undefined, last: last ? { content: last.kind === 'text' ? last.content : `[${last.kind}]`, ts: last.ts } : null }; }));
     }
-    let m;
     if ((m = url.pathname.match(/^\/api\/chat\/(\w+)$/))) {
       const id = m[1], p = P[id]; if (!p) return json(res, 404, { error: 'unknown persona' });
       if (req.method === 'GET') return json(res, 200, { messages: db.prepare('SELECT role,kind,content,ts FROM messages WHERE persona=? ORDER BY id').all(id), state: getState(id) });
@@ -146,9 +154,9 @@ http.createServer(async (req, res) => {
       await sceneQ[id];
       save(id, 'user', 'text', text);
       await queueScene(id);
-      const msgs = [{ role: 'system', content: systemPrompt(p, id, text, lang, emoji !== false) },
+      const msgs = [{ role: 'system', content: systemPrompt(p, id, text, p.speaks || lang, emoji !== false) },
         ...history(id).filter(x => x.kind === 'text').map(x => ({ role: x.role === 'user' ? 'user' : 'assistant', content: x.content }))];
-      const out = await (await venice('/chat/completions', { model: lang === 'tr' ? CHAT_MODEL_TR : CHAT_MODEL, messages: msgs, temperature: 0.9, max_tokens: 300 })).json();
+      const out = await (await venice('/chat/completions', { model: (p.speaks || lang) === 'tr' ? CHAT_MODEL_TR : CHAT_MODEL, messages: msgs, temperature: 0.9, max_tokens: 300 })).json();
       const reply = out.choices[0].message.content.trim();
       save(id, 'assistant', 'text', reply);
       queueScene(id);
@@ -188,7 +196,7 @@ http.createServer(async (req, res) => {
     }
     if ((m = url.pathname.match(/^\/api\/tts\/(\w+)$/)) && req.method === 'POST') {
       const p = P[m[1]]; const { text, lang } = await readBody(req);
-      const tr = lang === 'tr'; // Kokoro has no Turkish; use the multilingual ElevenLabs model
+      const tr = (p.speaks || lang) === 'tr'; // Kokoro has no Turkish; use the multilingual ElevenLabs model
       const r = await venice('/audio/speech', { model: tr ? TTS_MODEL_TR : TTS_MODEL, input: text.slice(0, 1000), voice: tr ? p.voice_tr : p.voice, response_format: 'mp3' });
       res.writeHead(200, { 'Content-Type': 'audio/mpeg' });
       return res.end(Buffer.from(await r.arrayBuffer()));

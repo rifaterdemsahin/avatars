@@ -1,0 +1,23 @@
+# Topping up Venice credits
+
+Status on 2026-11-10: **no top-up has been made.** Balance was $0.09 and is now exhausted; chat, images and video return HTTP 402 until credit is added.
+
+## Options
+1. **Web dashboard (simplest):** https://venice.ai/settings/api, add credit by card or crypto (min. $5 for x402).
+2. **x402 API (USDC on Base or Solana):** `POST https://api.venice.ai/api/v1/x402/top-up`.
+   - Call with no header, get HTTP 402 with payment terms (min `5000000` = 5 USDC, `payTo`, `asset`).
+   - Sign the USDC transfer with an x402 client, resend with `PAYMENT-SIGNATURE: <base64 payload>`.
+   - Needs a wallet holding USDC and its private key (never stored by this project).
+   - Wallet credit is checked with `GET /x402/balance/{wallet}` (SIWE sign-in); see `/balance` in the app.
+   - Unverified: whether wallet credit is spendable by the bearer API key in `.env`.
+3. **E2B browser automation (this folder, partial):** `e2b/run.mjs` + `e2b/venice_probe.py`.
+
+## E2B process (what exists)
+1. E2B key is stored in Azure Key Vault `dp-kv-deliverypilot` as `e2b-api-key` and `e2b-api-key-venice-topup`; the app reads `E2B_API_KEY` from `.env`.
+2. `POST /api/e2b/run` creates a sandbox, installs Playwright + Chromium (`PLAYWRIGHT_BROWSERS_PATH=/opt/pw`), runs `venice_probe.py`, returns logs and a screenshot, then kills the sandbox. The page `/e2b` has the button.
+3. Known issue: Venice's page did not finish loading inside the sandbox within the timeout (likely bot protection on datacenter IPs); not resolved.
+
+## Missing before the E2B login + top-up can be completed
+- Vault secrets for the Venice login (none exist; only `VENICE-API-KEY`).
+- A payment method authorised for this use (card or wallet). Nothing suitable is in the vault.
+- A confirmation step before any charge.

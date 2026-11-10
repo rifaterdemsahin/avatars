@@ -1,1 +1,1 @@
-{"name":"ai-companion-platform","type":"module","private":true,"scripts":{"start":"node --no-warnings server.js"}}
+{"name":"ai-companion-platform","type":"module","private":true,"scripts":{"start":"node --no-warnings server.js"},"dependencies":{"e2b":"^2.63.0"}}

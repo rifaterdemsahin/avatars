@@ -1,0 +1,24 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>E2B Top-up</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono&display=swap">
+<style>:root{--bg:#f4f5f8;--s:#fff;--fg:#1b1d2a;--m:#5d6177;--l:#d9dce8;--a:#5b4bdb}
+@media(prefers-color-scheme:dark){:root{--bg:#12131c;--s:#1b1d2b;--fg:#e8e9f2;--m:#9a9eb8;--l:#2f3248;--a:#9d92ff;color-scheme:dark}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px Inter,sans-serif;padding:24px 16px}
+main{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:16px}h1{font:700 26px 'Space Grotesk';margin:0}
+.card{background:var(--s);border:1px solid var(--l);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:12px}
+.btn{border:0;border-radius:8px;padding:11px 16px;background:var(--a);color:#fff;font:600 14px Inter;cursor:pointer;align-self:flex-start}.btn:disabled{opacity:.5}
+pre{margin:0;background:var(--bg);border:1px solid var(--l);border-radius:8px;padding:12px;font:12px 'JetBrains Mono',monospace;min-height:80px;white-space:pre-wrap}
+a{color:var(--a);text-decoration:none;font-size:13px}.m{color:var(--m);font-size:13px}img{max-width:100%;border-radius:8px;cursor:zoom-in}</style></head><body><main>
+<a href="/">← Back to chat</a><h1>Top up Venice via E2B</h1>
+<section class="card"><h2 style="margin:0;font-size:17px">Step 1: probe the login page (safe)</h2>
+<p class="m">Starts an E2B sandbox with a headless browser, opens Venice and takes a screenshot. It does not log in and never pays.</p>
+<button class="btn" id="run" type="button">Run sandbox probe</button><pre id="log">Idle.</pre><div id="shot"></div></section>
+<section class="card"><h2 style="margin:0;font-size:17px">Step 2: top up $5</h2>
+<p class="m">Not automated yet. It needs a Venice login and payment method in the vault. Use <a href="https://venice.ai/settings/api" target="_blank" rel="noopener">venice.ai/settings/api</a> or <a href="/balance">x402 wallet</a>. Steps are in <code>docs/VENICE_TOPUP.md</code>.</p></section>
+</main><script>
+const $=i=>document.getElementById(i);
+$('run').onclick=async()=>{$('run').disabled=true;$('log').textContent='Starting...';$('shot').innerHTML='';
+ const {job}=await(await fetch('/api/e2b/run',{method:'POST'})).json();
+ const t=setInterval(async()=>{const j=await(await fetch('/api/e2b/job/'+job)).json();
+  $('log').textContent=(j.log||[]).join('\n')+(j.error?'\nERROR: '+j.error:'');
+  if(j.done){clearInterval(t);$('run').disabled=false;if(j.result){$('log').textContent+='\n'+JSON.stringify({url:j.result.url,title:j.result.title,buttons:j.result.buttons},null,1);$('shot').innerHTML=`<img src="${j.result.screenshot}" alt="Venice page screenshot">`}}},3000)};
+</script></body></html>
