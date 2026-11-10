@@ -149,14 +149,14 @@ pre{margin:0;font-family:var(--font-m);font-size:12.5px;line-height:1.6;backgrou
       <div class="pane-h"><span data-i="persona">Persona</span><span data-i="context">Context</span></div>
       <div class="gallery" id="gallery"></div>
       <div class="ctx">
-        <div><h3 data-i="premise">Premise</h3><div id="premise"></div></div>
+        <div><h3 style="display:flex;justify-content:space-between;align-items:center"><span data-i="premise">Premise</span><button class="btn" type="button" id="scEdit" data-i="edit" style="padding:2px 8px;text-transform:none;letter-spacing:0">Edit</button></h3><div id="premise"></div><div id="scForm" hidden style="display:flex;flex-direction:column;gap:6px"><textarea id="scText" rows="6" maxlength="1200" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface2);color:var(--fg);font:inherit;font-size:13px;resize:vertical" aria-label="Scenario"></textarea><div class="row"><button class="btn primary" type="button" id="scSave" data-i="save">Save</button><button class="btn" type="button" id="scReset" data-i="reset">Reset</button><button class="btn" type="button" id="scCancel" data-i="cancel">Cancel</button></div></div></div>
         <div><h3 data-i="attrs">Attributes</h3><div class="attrs" id="attrs"></div></div>
         <div><h3 data-i="tags">Personality</h3><div class="tags" id="tags"></div></div>
       </div>
     </div>
   </div></div><div id="lb" hidden role="dialog" aria-modal="true" aria-label="Image viewer"><button class="x" type="button" aria-label="Close">✕</button><button class="p" type="button" aria-label="Previous">‹</button><img id="lbi" alt=""><button class="n" type="button" aria-label="Next">›</button></div><script>
-const T={en:{noCredit:'Venice credit has run out. Add credit to continue.',topup:'Add credit',settings:'Settings',language:'Language',emojis:'Emojis 😊',pay:'Payment request',bal:'Balance',conversations:'Conversations',persona:'Persona',context:'Context',call:'Call',img:'Show me the scene: Image',vid:'Show me the scene: Video',send:'Send',premise:'Premise',attrs:'Attributes',tags:'Personality',search:'Search contacts',msg:'Write a message',play:'Play voice',gen:'Generating...',aL:['Age','Build','Profession','Dialect'],eReply:'Reply failed: ',eImg:'Generation failed: ',eVoice:'Voice failed: ',call2:'Voice calls (WebRTC) arrive in phase 3.'},
-tr:{noCredit:'Venice kredisi bitti. Devam etmek için bakiye yükleyin.',topup:'Bakiye yükle',settings:'Ayarlar',language:'Dil',emojis:'Emojiler 😊',pay:'Ödeme talebi',bal:'Bakiye',conversations:'Sohbetler',persona:'Karakter',context:'Bağlam',call:'Ara',img:'Sahneyi göster: Görsel',vid:'Sahneyi göster: Video',send:'Gönder',premise:'Senaryo',attrs:'Özellikler',tags:'Kişilik',search:'Kişi ara',msg:'Bir mesaj yaz',play:'Sesi çal',gen:'Üretiliyor...',aL:['Yaş','Yapı','Meslek','Şive'],eReply:'Yanıt alınamadı: ',eImg:'Üretim başarısız: ',eVoice:'Ses başarısız: ',call2:'Sesli aramalar (WebRTC) 3. aşamada gelecek.'}};
+const T={en:{noCredit:'Venice credit has run out. Add credit to continue.',topup:'Add credit',edit:'Edit',save:'Save',reset:'Reset to default',cancel:'Cancel',scSaved:'Scenario updated',settings:'Settings',language:'Language',emojis:'Emojis 😊',pay:'Payment request',bal:'Balance',conversations:'Conversations',persona:'Persona',context:'Context',call:'Call',img:'Show me the scene: Image',vid:'Show me the scene: Video',send:'Send',premise:'Premise',attrs:'Attributes',tags:'Personality',search:'Search contacts',msg:'Write a message',play:'Play voice',gen:'Generating...',aL:['Age','Build','Profession','Dialect'],eReply:'Reply failed: ',eImg:'Generation failed: ',eVoice:'Voice failed: ',call2:'Voice calls (WebRTC) arrive in phase 3.'},
+tr:{noCredit:'Venice kredisi bitti. Devam etmek için bakiye yükleyin.',topup:'Bakiye yükle',edit:'Düzenle',save:'Kaydet',reset:'Varsayılana dön',cancel:'İptal',scSaved:'Senaryo güncellendi',settings:'Ayarlar',language:'Dil',emojis:'Emojiler 😊',pay:'Ödeme talebi',bal:'Bakiye',conversations:'Sohbetler',persona:'Karakter',context:'Bağlam',call:'Ara',img:'Sahneyi göster: Görsel',vid:'Sahneyi göster: Video',send:'Gönder',premise:'Senaryo',attrs:'Özellikler',tags:'Kişilik',search:'Kişi ara',msg:'Bir mesaj yaz',play:'Sesi çal',gen:'Üretiliyor...',aL:['Yaş','Yapı','Meslek','Şive'],eReply:'Yanıt alınamadı: ',eImg:'Üretim başarısız: ',eVoice:'Ses başarısız: ',call2:'Sesli aramalar (WebRTC) 3. aşamada gelecek.'}};
 let S={lang:'en',emoji:true};try{Object.assign(S,JSON.parse(localStorage.getItem('settings')||'{}'))}catch(e){}
 const t=k=>T[S.lang][k];
 const pv=(p,k)=>S.lang==='tr'&&p[k+'_tr']?p[k+'_tr']:p[k];
@@ -179,7 +179,8 @@ function renderThreads(){
     b.onclick=()=>select(p);box.appendChild(b)})}
 function addMsg(m){
   const d=document.createElement('div');
-  if(m.kind==='video'){d.innerHTML=`<video src="${m.content}" controls autoplay loop muted style="max-width:78%;border-radius:12px"></video>`;d.style.display='contents'}
+  if(m.kind==='note'){d.className='err';d.textContent=m.content}
+  else if(m.kind==='video'){d.innerHTML=`<video src="${m.content}" controls autoplay loop muted style="max-width:78%;border-radius:12px"></video>`;d.style.display='contents'}
   else if(m.kind==='image'){d.innerHTML=`<img src="${m.content}" alt="Generated scene">`;d.style.display='contents'}
   else{d.className='msg'+(m.role==='user'?' me':'');d.innerHTML=esc(m.content)+(m.role!=='user'?'<div class="voice"><button class="btn" type="button" style="padding:2px 8px" data-play>'+t('play')+'</button></div>':'')+`<span class="ts">${fmt(m.ts)}</span>`}
   $('stream').appendChild(d);$('stream').scrollTop=1e6;return d}
@@ -215,6 +216,17 @@ function lbClose(){$('lb').hidden=true;$('lbi').removeAttribute('src');focusMsg(
 document.addEventListener('click',e=>{const i=e.target.closest('#stream img,#gallery img');if(i){lbOpen(i.getAttribute('src'));return}
   if(e.target.closest('#lb .x')||e.target.id==='lb')lbClose();else if(e.target.closest('#lb .p'))lbStep(-1);else if(e.target.closest('#lb .n'))lbStep(1)});
 document.addEventListener('keydown',e=>{if($('lb').hidden)return;if(e.key==='Escape')lbClose();if(e.key==='ArrowLeft')lbStep(-1);if(e.key==='ArrowRight')lbStep(1)});
+
+// Scenario editing: premise is editable per character; saving re-derives the scene server-side.
+$('scEdit').onclick=()=>{$('scText').value=pv(cur,'scenario');$('scForm').hidden=false;$('premise').hidden=true;$('scEdit').hidden=true;$('scText').focus()};
+const scClose=()=>{$('scForm').hidden=true;$('premise').hidden=false;$('scEdit').hidden=false};
+$('scCancel').onclick=scClose;
+async function scSend(text){$('scSave').disabled=$('scReset').disabled=true;
+  try{const r=await(await post('/api/scenario/'+cur.id,{scenario:text})).json();cur.scenario=r.scenario;cur.scenario_tr=r.scenario_tr;cur.customScenario=r.customScenario;
+    fillPersona();scClose();addMsg({role:'system',kind:'note',content:t('scSaved')+(text?': '+text:''),ts:Date.now()})}
+  catch(e){note(e.message)}$('scSave').disabled=$('scReset').disabled=false}
+$('scSave').onclick=()=>scSend($('scText').value.trim());
+$('scReset').onclick=()=>scSend('');
 $('q').oninput=renderThreads;
 $('settingsBtn').onclick=()=>{$('settings').hidden=!$('settings').hidden};
 $('lang').onchange=e=>{S.lang=e.target.value;saveS();applyI18n()};

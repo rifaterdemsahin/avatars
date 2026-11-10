@@ -25,6 +25,7 @@ const db = new DatabaseSync(path.join(root, 'data/companion.db'));
 db.exec(`
 CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY, persona TEXT, role TEXT, kind TEXT DEFAULT 'text', content TEXT, ts INTEGER);
 CREATE TABLE IF NOT EXISTS memories(id INTEGER PRIMARY KEY, persona TEXT, fact TEXT, ts INTEGER);
+CREATE TABLE IF NOT EXISTS scenarios(persona TEXT PRIMARY KEY, text TEXT);
 CREATE TABLE IF NOT EXISTS state(persona TEXT PRIMARY KEY, json TEXT);`);
 
 const personas = JSON.parse(fs.readFileSync(path.join(root, 'personas.json'), 'utf8'));
@@ -39,6 +40,8 @@ const venice = async (route, body) => {
   return r;
 };
 
+const customScenario = id => db.prepare('SELECT text FROM scenarios WHERE persona=?').get(id)?.text || null;
+const scenarioOf = id => customScenario(id) || P[id].scenario;
 const getState = id => ({ affection_level: 1, agreed_plans: [], scene: P[id].scene0, ...JSON.parse(db.prepare('SELECT json FROM state WHERE persona=?').get(id)?.json || '{}') });
 const setState = (id, st) => db.prepare('INSERT OR REPLACE INTO state(persona,json) VALUES(?,?)').run(id, JSON.stringify(st));
 const log = (...a) => { const l = new Date().toISOString() + ' ' + a.join(' '); console.log(l); fs.appendFileSync(path.join(root, 'data/prompts.log'), l + '\n'); };
@@ -57,7 +60,7 @@ function systemPrompt(p, id, userText, lang = 'en', emoji = true) {
   return `You are ${p.name}, a fictional character in an interactive story. Stay in character at all times.
 Background: ${p.bio}
 Speaking tone: ${p.tone}
-Scenario: ${p.scenario}
+Scenario (follow this setting and relationship; the user may have just changed it): ${scenarioOf(id)}
 Hard boundaries: ${p.boundaries.join('; ')}. Keep content non-explicit.
 Current scene (the world right now; your dialogue must react to it and to any change the user states): ${JSON.stringify(getState(id).scene)}
 Relationship state: ${JSON.stringify({ affection_level: getState(id).affection_level, agreed_plans: getState(id).agreed_plans })}
@@ -146,7 +149,24 @@ http.createServer(async (req, res) => {
     if (url.pathname === '/pay') url.pathname = '/pay.html';
     if (url.pathname === '/balance') url.pathname = '/balance.html';
     if (url.pathname === '/api/personas') {
-      return json(res, 200, personas.map(p => { const h = history(p.id); const last = h.at(-1); return { ...p, boundaries: undefined, visual: undefined, scene0: undefined, last: last ? { content: last.kind === 'text' ? last.content : `[${last.kind}]`, ts: last.ts } : null }; }));
+      return json(res, 200, personas.map(p => { const h = history(p.id); const last = h.at(-1); const cs = customScenario(p.id); return { ...p, ...(cs ? { scenario: cs, scenario_tr: cs } : {}), customScenario: !!cs, boundaries: undefined, visual: undefined, scene0: undefined, last: last ? { content: last.kind === 'text' ? last.content : `[${last.kind}]`, ts: last.ts } : null }; }));
+    }
+    if ((m = url.pathname.match(/^\/api\/scenario\/(\w+)$/)) && req.method === 'POST') {
+      const id = m[1], p = P[id]; if (!p) return json(res, 404, { error: 'unknown persona' });
+      const text = String((await readBody(req)).scenario || '').trim().slice(0, 1200);
+      if (text) db.prepare('INSERT OR REPLACE INTO scenarios(persona,text) VALUES(?,?)').run(id, text); else db.prepare('DELETE FROM scenarios WHERE persona=?').run(id);
+      const sc = text || p.scenario;
+      // Re-derive the scene (location, lighting, time, weather, props) from the new scenario so images and dialogue follow it.
+      let scene = p.scene0;
+      try {
+        const r = await (await venice('/chat/completions', { model: CHAT_MODEL, temperature: 0, max_tokens: 250,
+          messages: [{ role: 'user', content: `Scenario: ${sc}\n\nReturn ONLY JSON describing the opening scene: {"location":string,"indoor":boolean,"lighting":string,"time_of_day":string,"weather":string,"props":[strings]}` }] })).json();
+        scene = JSON.parse(r.choices[0].message.content.match(/\{[\s\S]*\}/)[0]);
+      } catch (e) { console.warn('scenario scene failed:', e.message); }
+      setState(id, { ...getState(id), scene });
+      log(`[scenario ${id}]`, text ? 'custom: ' + text : 'reset to default', JSON.stringify(scene));
+      save(id, 'system', 'note', text ? 'Scenario updated: ' + text : 'Scenario reset to default');
+      return json(res, 200, { scenario: sc, scenario_tr: text || p.scenario_tr, customScenario: !!text, scene });
     }
     if ((m = url.pathname.match(/^\/api\/chat\/(\w+)$/))) {
       const id = m[1], p = P[id]; if (!p) return json(res, 404, { error: 'unknown persona' });
@@ -157,6 +177,7 @@ http.createServer(async (req, res) => {
       await queueScene(id);
       const msgs = [{ role: 'system', content: systemPrompt(p, id, text, p.speaks || lang, emoji !== false) },
         ...history(id).filter(x => x.kind === 'text').map(x => ({ role: x.role === 'user' ? 'user' : 'assistant', content: x.content }))];
+      if ((p.speaks || lang) === 'tr') { msgs.at(-1).content += '\n\n[Rol gereği yalnızca Türkçe yanıt ver. Reply ONLY in Turkish.]'; msgs.push({ role: 'system', content: 'Sadece Türkçe yaz. Your next reply must be entirely in Turkish.' }); } // history in English would otherwise pull replies to English
       const out = await (await venice('/chat/completions', { model: (p.speaks || lang) === 'tr' ? CHAT_MODEL_TR : CHAT_MODEL, messages: msgs, temperature: 0.9, max_tokens: 300 })).json();
       const reply = out.choices[0].message.content.trim();
       save(id, 'assistant', 'text', reply);
