@@ -21,3 +21,7 @@ Status on 2026-11-10: **no top-up has been made.** Balance was $0.09 and is now 
 - Vault secrets for the Venice login (none exist; only `VENICE-API-KEY`).
 - A payment method authorised for this use (card or wallet). Nothing suitable is in the vault.
 - A confirmation step before any charge.
+
+## Tooling installed (2026-11-10)
+- `@e2b/cli` 2.23.0 (global). Works with `E2B_API_KEY` from `.env`, so `e2b auth login` is not needed. `e2b sandbox list` confirmed access. `e2b sandbox create base` opens an interactive terminal; run it yourself with `! e2b sandbox create base`.
+- `playwright` 1.65.0 (devDependency) with Chromium. `node e2b/local_probe.mjs` opens Venice locally and screenshots it: the page loads as "Venice Guest" (not logged in). The same page timed out inside the E2B sandbox, so run browser steps locally until that is solved.
