@@ -140,7 +140,7 @@ pre{margin:0;font-family:var(--font-m);font-size:12.5px;line-height:1.6;backgrou
           <button class="chip" type="button" data-q="video" data-i="vid">Show me the scene: Video</button>
         </div>
         <form class="row" id="form">
-          <input id="msg" type="text" placeholder="Write a message" data-ph="msg" autocomplete="off">
+          <input id="msg" type="text" autofocus placeholder="Write a message" data-ph="msg" autocomplete="off">
           <button class="btn primary" type="submit" data-i="send">Send</button>
         </form>
       </div>
@@ -165,7 +165,7 @@ function applyI18n(){document.documentElement.lang=S.lang;
   document.querySelectorAll('[data-ph]').forEach(e=>{e.placeholder=t(e.dataset.ph);e.setAttribute('aria-label',t(e.dataset.ph))});
   $('lang').value=S.lang;$('emoji').checked=S.emoji;if(P.length){renderThreads();if(cur)fillPersona()}}
 function saveS(){try{localStorage.setItem('settings',JSON.stringify(S))}catch(e){}}
-let P=[],cur=null,busy=false;const $=i=>document.getElementById(i);
+let P=[],cur=null,busy=false;const focusMsg=()=>{try{if(document.activeElement!==$('q'))$('msg').focus()}catch(e){}};const $=i=>document.getElementById(i);
 const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
 const api=async(u,o)=>{const r=await fetch(u,o);if(!r.ok)throw new Error((await r.json().catch(()=>({}))).error||r.status);return r};
@@ -191,15 +191,15 @@ function fillPersona(){const p=cur;$('tav').style.background=p.color;$('tav').te
 async function select(p){cur=p;renderThreads();
   $('gallery').innerHTML='';fillPersona();
   $('stream').innerHTML='';const {messages}=await(await api('/api/chat/'+p.id)).json();
-  messages.forEach(addMsg);$('gallery').innerHTML=messages.filter(m=>m.kind==='image').map(m=>`<img src="${m.content}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px" alt="">`).join('')}
+  messages.forEach(addMsg);focusMsg();$('gallery').innerHTML=messages.filter(m=>m.kind==='image').map(m=>`<img src="${m.content}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px" alt="">`).join('')}
 $('form').onsubmit=async e=>{e.preventDefault();const v=$('msg').value.trim();if(!v||busy)return;busy=true;$('msg').value='';
   addMsg({role:'user',kind:'text',content:v,ts:Date.now()});
   try{const r=await(await post('/api/chat/'+cur.id,{text:v,lang:S.lang,emoji:S.emoji})).json();addMsg({role:'assistant',kind:'text',content:r.reply,ts:r.ts});cur.last={content:r.reply,ts:r.ts};renderThreads()}
-  catch(err){note(t('eReply')+err.message)}busy=false};
+  catch(err){note(t('eReply')+err.message)}busy=false;focusMsg()};
 document.querySelectorAll('.chip').forEach(c=>c.onclick=async()=>{
   if(busy)return;busy=true;c.disabled=true;const old=c.textContent;c.textContent=t('gen');
   try{const isV=c.dataset.q==='video';const r=await(await post('/api/'+(isV?'video/':'image/')+cur.id)).json();addMsg({role:'assistant',kind:isV?'video':'image',content:r.url});if(!isV)$('gallery').insertAdjacentHTML('afterbegin',`<img src="${r.url}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px" alt="">`)}
-  catch(err){note(t('eImg')+err.message)}applyI18n();c.disabled=false;busy=false});
+  catch(err){note(t('eImg')+err.message)}applyI18n();c.disabled=false;busy=false;focusMsg()});
 $('stream').addEventListener('click',async e=>{const b=e.target;if(b.dataset.play===undefined)return;
   const text=b.closest('.msg').firstChild.textContent;b.textContent='Loading...';
   try{const r=await post('/api/tts/'+cur.id,{text,lang:S.lang});const a=new Audio(URL.createObjectURL(await r.blob()));a.onended=()=>b.textContent=t('play');await a.play();b.textContent='Playing'}
@@ -211,7 +211,7 @@ let LB={list:[],i:0};
 function lbShow(){$('lbi').src=LB.list[LB.i];document.querySelectorAll('#lb .p,#lb .n').forEach(b=>b.hidden=LB.list.length<2)}
 function lbOpen(src){LB.list=[...new Set([...document.querySelectorAll('#stream img')].map(i=>i.getAttribute('src')))];LB.i=Math.max(0,LB.list.indexOf(src));lbShow();$('lb').hidden=false;$('lb').querySelector('.x').focus()}
 function lbStep(d){LB.i=(LB.i+d+LB.list.length)%LB.list.length;lbShow()}
-function lbClose(){$('lb').hidden=true;$('lbi').removeAttribute('src')}
+function lbClose(){$('lb').hidden=true;$('lbi').removeAttribute('src');focusMsg()}
 document.addEventListener('click',e=>{const i=e.target.closest('#stream img,#gallery img');if(i){lbOpen(i.getAttribute('src'));return}
   if(e.target.closest('#lb .x')||e.target.id==='lb')lbClose();else if(e.target.closest('#lb .p'))lbStep(-1);else if(e.target.closest('#lb .n'))lbStep(1)});
 document.addEventListener('keydown',e=>{if($('lb').hidden)return;if(e.key==='Escape')lbClose();if(e.key==='ArrowLeft')lbStep(-1);if(e.key==='ArrowRight')lbStep(1)});

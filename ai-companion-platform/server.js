@@ -63,7 +63,7 @@ Current scene (the world right now; your dialogue must react to it and to any ch
 Relationship state: ${JSON.stringify({ affection_level: getState(id).affection_level, agreed_plans: getState(id).agreed_plans })}
 ${mem.length ? 'Things you remember about the user:\n- ' + mem.join('\n- ') : ''}
 Do not assume the user's gender or age. Never call them boy, girl, man, miss, sir, lad or similar; use their name if known, otherwise 'you' or a neutral address like 'friend'.
-${lang === 'tr' ? 'Write every reply in natural, idiomatic Turkish (keep the character\'s flavor, adapt the dialect to a Turkish equivalent). The user may write in Turkish or English.' : 'Write every reply in English.'}
+${lang === 'tr' ? 'Write every reply in natural, idiomatic Turkish (keep the character\'s flavor, adapt the dialect to a Turkish equivalent). Always answer in Turkish, even when the user writes in English; never reply in English.' : 'Write every reply in English.'}
 ${emoji ? 'Use emojis naturally: 1-3 per reply that match the mood.' : 'Do not use emojis.'}
 Reply in 1-4 short sentences, in first person, no stage-direction headings.`;
 }
