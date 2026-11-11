@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS scenarios(persona TEXT PRIMARY KEY, text TEXT);
 CREATE TABLE IF NOT EXISTS state(persona TEXT PRIMARY KEY, json TEXT);`);
 
 try { db.exec('ALTER TABLE messages ADD COLUMN cost REAL'); } catch {}
+try { db.exec('ALTER TABLE messages ADD COLUMN model TEXT'); } catch {}
 const personas = JSON.parse(fs.readFileSync(path.join(root, 'personas.json'), 'utf8'));
 const P = Object.fromEntries(personas.map(p => [p.id, p]));
 
@@ -77,7 +78,7 @@ const getState = id => ({ affection_level: 1, agreed_plans: [], scene: P[id].sce
 const setState = (id, st) => db.prepare('INSERT OR REPLACE INTO state(persona,json) VALUES(?,?)').run(id, JSON.stringify(st));
 const log = (...a) => { const l = new Date().toISOString() + ' ' + a.join(' '); console.log(l); fs.appendFileSync(path.join(root, 'data/prompts.log'), l + '\n'); };
 const history = id => db.prepare('SELECT role,kind,content,ts FROM messages WHERE persona=? ORDER BY id DESC LIMIT ?').all(id, TURNS).reverse();
-const save = (id, role, kind, content, cost = null) => db.prepare('INSERT INTO messages(persona,role,kind,content,ts,cost) VALUES(?,?,?,?,?,?)').run(id, role, kind, content, Date.now(), cost);
+const save = (id, role, kind, content, cost = null, model = null) => db.prepare('INSERT INTO messages(persona,role,kind,content,ts,cost,model) VALUES(?,?,?,?,?,?,?)').run(id, role, kind, content, Date.now(), cost, model);
 
 // Episodic memory: keyword retrieval (swap for pgvector/embeddings later).
 function recall(id, text) {
@@ -223,7 +224,7 @@ const handle = async (req, res) => {
     }
     if ((m = url.pathname.match(/^\/api\/chat\/(\w+)$/))) {
       const id = m[1], p = P[id]; if (!p) return json(res, 404, { error: 'unknown persona' });
-      if (req.method === 'GET') return json(res, 200, { messages: db.prepare('SELECT role,kind,content,ts,cost FROM messages WHERE persona=? ORDER BY id').all(id), state: getState(id) });
+      if (req.method === 'GET') return json(res, 200, { messages: db.prepare('SELECT role,kind,content,ts,cost,model FROM messages WHERE persona=? ORDER BY id').all(id), state: getState(id) });
       const { text, lang, emoji, model } = await readBody(req);
       await sceneQ[id];
       save(id, 'user', 'text', text);
@@ -234,10 +235,11 @@ const handle = async (req, res) => {
       const out = await (await venice('/chat/completions', { model: chooseModel(p, lang, model).model, messages: msgs, temperature: 0.9, max_tokens: 300 })).json();
       const reply = out.choices[0].message.content.trim();
       const cost = reqCost();
-      save(id, 'assistant', 'text', reply, cost.usd);
+      const choice = chooseModel(p, lang, model);
+      save(id, 'assistant', 'text', reply, cost.usd, choice.model);
       queueScene(id);
       if (db.prepare("SELECT COUNT(*) c FROM messages WHERE persona=? AND role='user'").get(id).c % 4 === 0) extract(id);
-      return json(res, 200, { reply, ts: Date.now(), cost, balance, choice: chooseModel(p, lang, model) });
+      return json(res, 200, { reply, ts: Date.now(), cost, balance, choice, model: choice.model });
     }
     if ((m = url.pathname.match(/^\/api\/image\/(\w+)$/))) {
       const id = m[1], p = P[id]; if (!p) return json(res, 404, { error: 'unknown persona' });
@@ -248,8 +250,8 @@ const handle = async (req, res) => {
       const file = `${id}-${Date.now()}.png`;
       fs.writeFileSync(path.join(root, 'data/assets', file), Buffer.from(r.images[0], 'base64'));
       const cost = reqCost();
-      save(id, 'assistant', 'image', '/assets/' + file, cost.usd);
-      return json(res, 200, { url: '/assets/' + file, cost, balance });
+      save(id, 'assistant', 'image', '/assets/' + file, cost.usd, IMAGE_MODEL);
+      return json(res, 200, { url: '/assets/' + file, cost, balance, model: IMAGE_MODEL });
     }
     if ((m = url.pathname.match(/^\/api\/video\/(\w+)$/))) {
       const id = m[1], p = P[id]; if (!p) return json(res, 404, { error: 'unknown persona' });
@@ -264,8 +266,8 @@ const handle = async (req, res) => {
           const file = `${id}-${Date.now()}.mp4`;
           fs.writeFileSync(path.join(root, 'data/assets', file), Buffer.from(await r.arrayBuffer()));
           const cost = reqCost();
-          save(id, 'assistant', 'video', '/assets/' + file, cost.usd);
-          return json(res, 200, { url: '/assets/' + file, cost, balance });
+          save(id, 'assistant', 'video', '/assets/' + file, cost.usd, VIDEO_MODEL);
+          return json(res, 200, { url: '/assets/' + file, cost, balance, model: VIDEO_MODEL });
         }
         const st = await r.json(); log(`[video ${id}] status`, st.status || JSON.stringify(st).slice(0, 80));
         if (/fail|error/i.test(st.status || '')) throw new Error('video failed');

@@ -189,8 +189,8 @@ function addMsg(m){
   const d=document.createElement('div');
   if(m.kind==='note'){d.className='err';d.textContent=m.content}
   else if(m.kind==='video'){d.innerHTML=`<video src="${m.content}" controls autoplay loop muted style="max-width:78%;border-radius:12px"></video>`;d.style.display='contents'}
-  else if(m.kind==='image'){d.innerHTML=`<img src="${m.content}" alt="Generated scene">`+(m.cost!=null?`<div class="cost">${usd(m.cost)}</div>`:'');d.style.display='contents'}
-  else{d.className='msg'+(m.role==='user'?' me':'');d.innerHTML=esc(m.content)+(m.role!=='user'?'<div class="voice"><button class="btn" type="button" style="padding:2px 8px" data-play>'+t('play')+'</button></div>':'')+`<span class="ts">${fmt(m.ts)}${m.cost!=null&&m.role!=='user'?' · '+usd(m.cost):''}</span>`}
+  else if(m.kind==='image'){d.innerHTML=`<img src="${m.content}" alt="Generated scene">`+(m.cost!=null?`<div class="cost">${usd(m.cost)}${m.model?' · '+esc(m.model):''}</div>`:'');d.style.display='contents'}
+  else{d.className='msg'+(m.role==='user'?' me':'');d.innerHTML=esc(m.content)+(m.role!=='user'?'<div class="voice"><button class="btn" type="button" style="padding:2px 8px" data-play>'+t('play')+'</button></div>':'')+`<span class="ts">${fmt(m.ts)}${m.cost!=null&&m.role!=='user'?' · '+usd(m.cost):''}${m.model&&m.role!=='user'?' · '+esc(m.model):''}</span>`}
   $('stream').appendChild(d);$('stream').scrollTop=1e6;return d}
 function fillPersona(){const p=cur;$('tav').style.background=p.color;$('tav').textContent=p.name[0];$('tname').textContent=p.name;$('trole').textContent=pv(p,'role');
   $('premise').textContent=pv(p,'scenario');
@@ -203,11 +203,11 @@ async function select(p){cur=p;renderThreads();
   messages.forEach(addMsg);focusMsg();setTimeout(toBottom,300);$('gallery').innerHTML=messages.filter(m=>m.kind==='image').map(m=>`<img src="${m.content}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px" alt="">`).join('')}
 $('form').onsubmit=async e=>{e.preventDefault();const v=$('msg').value.trim();if(!v||busy)return;busy=true;$('msg').value='';
   addMsg({role:'user',kind:'text',content:v,ts:Date.now()});
-  try{const r=await(await post('/api/chat/'+cur.id,{text:v,lang:S.lang,emoji:S.emoji,model:S.model})).json();addMsg({role:'assistant',kind:'text',content:r.reply,ts:r.ts,cost:r.cost.usd});refreshCosts();showModel(r.choice);cur.last={content:r.reply,ts:r.ts};renderThreads()}
+  try{const r=await(await post('/api/chat/'+cur.id,{text:v,lang:S.lang,emoji:S.emoji,model:S.model})).json();addMsg({role:'assistant',kind:'text',content:r.reply,ts:r.ts,cost:r.cost.usd,model:r.model});refreshCosts();showModel(r.choice);cur.last={content:r.reply,ts:r.ts};renderThreads()}
   catch(err){note(t('eReply')+err.message)}busy=false;focusMsg()};
 document.querySelectorAll('.chip').forEach(c=>c.onclick=async()=>{
   if(busy)return;busy=true;c.disabled=true;const old=c.textContent;c.textContent=t('gen');
-  try{const isV=c.dataset.q==='video';const r=await(await post('/api/'+(isV?'video/':'image/')+cur.id)).json();addMsg({role:'assistant',kind:isV?'video':'image',content:r.url,cost:r.cost.usd});refreshCosts();if(!isV)$('gallery').insertAdjacentHTML('afterbegin',`<img src="${r.url}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px" alt="">`)}
+  try{const isV=c.dataset.q==='video';const r=await(await post('/api/'+(isV?'video/':'image/')+cur.id)).json();addMsg({role:'assistant',kind:isV?'video':'image',content:r.url,cost:r.cost.usd,model:r.model});refreshCosts();if(!isV)$('gallery').insertAdjacentHTML('afterbegin',`<img src="${r.url}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px" alt="">`)}
   catch(err){note(t('eImg')+err.message)}applyI18n();c.disabled=false;busy=false;focusMsg()});
 $('stream').addEventListener('click',async e=>{const b=e.target;if(b.dataset.play===undefined)return;
   const text=b.closest('.msg').firstChild.textContent;b.textContent='Loading...';
