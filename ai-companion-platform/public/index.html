@@ -153,11 +153,12 @@ pre{margin:0;font-family:var(--font-m);font-size:12.5px;line-height:1.6;backgrou
         <div><h3 style="display:flex;justify-content:space-between;align-items:center"><span data-i="premise">Premise</span><button class="btn" type="button" id="scEdit" data-i="edit" style="padding:2px 8px;text-transform:none;letter-spacing:0">Edit</button></h3><div id="premise"></div><div id="scForm" hidden style="display:flex;flex-direction:column;gap:6px"><textarea id="scText" rows="6" maxlength="1200" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface2);color:var(--fg);font:inherit;font-size:13px;resize:vertical" aria-label="Scenario"></textarea><div class="row"><button class="btn primary" type="button" id="scSave" data-i="save">Save</button><button class="btn" type="button" id="scReset" data-i="reset">Reset</button><button class="btn" type="button" id="scCancel" data-i="cancel">Cancel</button></div></div></div>
         <div><h3 data-i="attrs">Attributes</h3><div class="attrs" id="attrs"></div></div>
         <div><h3 data-i="tags">Personality</h3><div class="tags" id="tags"></div></div>
+        <div><h3 data-i="modelWhy">Model</h3><div id="mname" style="font-family:var(--font-m);font-size:12px;color:var(--accent);word-break:break-all"></div><div id="mwhy" style="font-size:12px;color:var(--muted);margin-top:4px"></div></div>
       </div>
     </div>
   </div></div><div id="lb" hidden role="dialog" aria-modal="true" aria-label="Image viewer"><button class="x" type="button" aria-label="Close">✕</button><button class="p" type="button" aria-label="Previous">‹</button><img id="lbi" alt=""><button class="n" type="button" aria-label="Next">›</button></div><script>
-const T={en:{model:'Model',balance:'Balance',today:'Spent today',calls:'calls',noCredit:'Venice credit has run out. Add credit to continue.',topup:'Add credit',edit:'Edit',save:'Save',reset:'Reset to default',cancel:'Cancel',scSaved:'Scenario updated',settings:'Settings',language:'Language',emojis:'Emojis 😊',pay:'Payment request',bal:'Balance',conversations:'Conversations',persona:'Persona',context:'Context',call:'Call',img:'Show me the scene: Image',vid:'Show me the scene: Video',send:'Send',premise:'Premise',attrs:'Attributes',tags:'Personality',search:'Search contacts',msg:'Write a message',play:'Play voice',gen:'Generating...',aL:['Age','Build','Profession','Dialect'],eReply:'Reply failed: ',eImg:'Generation failed: ',eVoice:'Voice failed: ',call2:'Voice calls (WebRTC) arrive in phase 3.'},
-tr:{model:'Model',balance:'Bakiye',today:'Bugünkü masraf',calls:'istek',noCredit:'Venice kredisi bitti. Devam etmek için bakiye yükleyin.',topup:'Bakiye yükle',edit:'Düzenle',save:'Kaydet',reset:'Varsayılana dön',cancel:'İptal',scSaved:'Senaryo güncellendi',settings:'Ayarlar',language:'Dil',emojis:'Emojiler 😊',pay:'Ödeme talebi',bal:'Bakiye',conversations:'Sohbetler',persona:'Karakter',context:'Bağlam',call:'Ara',img:'Sahneyi göster: Görsel',vid:'Sahneyi göster: Video',send:'Gönder',premise:'Senaryo',attrs:'Özellikler',tags:'Kişilik',search:'Kişi ara',msg:'Bir mesaj yaz',play:'Sesi çal',gen:'Üretiliyor...',aL:['Yaş','Yapı','Meslek','Şive'],eReply:'Yanıt alınamadı: ',eImg:'Üretim başarısız: ',eVoice:'Ses başarısız: ',call2:'Sesli aramalar (WebRTC) 3. aşamada gelecek.'}};
+const T={en:{modelWhy:'Model in use and why',model:'Model',balance:'Balance',today:'Spent today',calls:'calls',noCredit:'Venice credit has run out. Add credit to continue.',topup:'Add credit',edit:'Edit',save:'Save',reset:'Reset to default',cancel:'Cancel',scSaved:'Scenario updated',settings:'Settings',language:'Language',emojis:'Emojis 😊',pay:'Payment request',bal:'Balance',conversations:'Conversations',persona:'Persona',context:'Context',call:'Call',img:'Show me the scene: Image',vid:'Show me the scene: Video',send:'Send',premise:'Premise',attrs:'Attributes',tags:'Personality',search:'Search contacts',msg:'Write a message',play:'Play voice',gen:'Generating...',aL:['Age','Build','Profession','Dialect'],eReply:'Reply failed: ',eImg:'Generation failed: ',eVoice:'Voice failed: ',call2:'Voice calls (WebRTC) arrive in phase 3.'},
+tr:{modelWhy:'Kullanılan model ve nedeni',model:'Model',balance:'Bakiye',today:'Bugünkü masraf',calls:'istek',noCredit:'Venice kredisi bitti. Devam etmek için bakiye yükleyin.',topup:'Bakiye yükle',edit:'Düzenle',save:'Kaydet',reset:'Varsayılana dön',cancel:'İptal',scSaved:'Senaryo güncellendi',settings:'Ayarlar',language:'Dil',emojis:'Emojiler 😊',pay:'Ödeme talebi',bal:'Bakiye',conversations:'Sohbetler',persona:'Karakter',context:'Bağlam',call:'Ara',img:'Sahneyi göster: Görsel',vid:'Sahneyi göster: Video',send:'Gönder',premise:'Senaryo',attrs:'Özellikler',tags:'Kişilik',search:'Kişi ara',msg:'Bir mesaj yaz',play:'Sesi çal',gen:'Üretiliyor...',aL:['Yaş','Yapı','Meslek','Şive'],eReply:'Yanıt alınamadı: ',eImg:'Üretim başarısız: ',eVoice:'Ses başarısız: ',call2:'Sesli aramalar (WebRTC) 3. aşamada gelecek.'}};
 let S={lang:'en',emoji:true,model:''};try{Object.assign(S,JSON.parse(localStorage.getItem('settings')||'{}'))}catch(e){}
 const t=k=>T[S.lang][k];
 const pv=(p,k)=>S.lang==='tr'&&p[k+'_tr']?p[k+'_tr']:p[k];
@@ -169,6 +170,9 @@ function saveS(){try{localStorage.setItem('settings',JSON.stringify(S))}catch(e)
 const usd=n=>n==null?'':'$'+(n<0.01?n.toFixed(4):n.toFixed(3));
 async function refreshCosts(){try{const c=await(await api('/api/costs')).json();
   $('costbar').textContent=`${t('balance')} ${usd(c.balance)} · ${t('today')} ${usd(c.today.usd)} (${c.today.n} ${t('calls')})`}catch(e){}}
+
+async function showModel(ch){try{ch=ch||await(await api('/api/model-choice?persona='+cur.id+'&lang='+S.lang+'&model='+encodeURIComponent(S.model||''))).json();
+  $('mname').textContent=ch.model+(ch.price!=null?`  ($${ch.price}/1M out)`:'');$('mwhy').textContent=S.lang==='tr'?ch.reason_tr:ch.reason_en}catch(e){}}
 let P=[],cur=null,busy=false;const focusMsg=()=>{try{if(document.activeElement!==$('q'))$('msg').focus()}catch(e){}};const $=i=>document.getElementById(i);
 const esc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmt=t=>new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
@@ -194,12 +198,12 @@ function fillPersona(){const p=cur;$('tav').style.background=p.color;$('tav').te
   $('attrs').innerHTML=vals.map((v,i)=>`<div class="attr"><b>${t('aL')[i]}</b>${v}</div>`).join('');
   $('tags').innerHTML=pv(p,'tags').map(x=>`<span>${x}</span>`).join('')}
 async function select(p){cur=p;renderThreads();
-  $('gallery').innerHTML='';fillPersona();
+  $('gallery').innerHTML='';fillPersona();showModel();
   $('stream').innerHTML='';const {messages}=await(await api('/api/chat/'+p.id)).json();
   messages.forEach(addMsg);focusMsg();setTimeout(toBottom,300);$('gallery').innerHTML=messages.filter(m=>m.kind==='image').map(m=>`<img src="${m.content}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px" alt="">`).join('')}
 $('form').onsubmit=async e=>{e.preventDefault();const v=$('msg').value.trim();if(!v||busy)return;busy=true;$('msg').value='';
   addMsg({role:'user',kind:'text',content:v,ts:Date.now()});
-  try{const r=await(await post('/api/chat/'+cur.id,{text:v,lang:S.lang,emoji:S.emoji,model:S.model})).json();addMsg({role:'assistant',kind:'text',content:r.reply,ts:r.ts,cost:r.cost.usd});refreshCosts();cur.last={content:r.reply,ts:r.ts};renderThreads()}
+  try{const r=await(await post('/api/chat/'+cur.id,{text:v,lang:S.lang,emoji:S.emoji,model:S.model})).json();addMsg({role:'assistant',kind:'text',content:r.reply,ts:r.ts,cost:r.cost.usd});refreshCosts();showModel(r.choice);cur.last={content:r.reply,ts:r.ts};renderThreads()}
   catch(err){note(t('eReply')+err.message)}busy=false;focusMsg()};
 document.querySelectorAll('.chip').forEach(c=>c.onclick=async()=>{
   if(busy)return;busy=true;c.disabled=true;const old=c.textContent;c.textContent=t('gen');
@@ -239,10 +243,10 @@ $('stream').addEventListener('load',toBottom,true);$('stream').addEventListener(
 
 api('/api/models').then(r=>r.json()).then(list=>{$('model').innerHTML='<option value="">Auto (EN: uncensored-role-play, TR: gemma-4-uncensored)</option>'+list.map(m=>`<option value="${m.id}">${m.id}${m.out?' ($'+m.out+'/M out)':''}</option>`).join('');
   $('model').value=S.model||''}).catch(()=>{});
-$('model').onchange=e=>{S.model=e.target.value;saveS()};
+$('model').onchange=e=>{S.model=e.target.value;saveS();if(cur)showModel()};
 $('q').oninput=renderThreads;
 $('settingsBtn').onclick=()=>{$('settings').hidden=!$('settings').hidden};
-$('lang').onchange=e=>{S.lang=e.target.value;saveS();applyI18n()};
+$('lang').onchange=e=>{S.lang=e.target.value;saveS();applyI18n();if(cur)showModel()};
 $('emoji').onchange=e=>{S.emoji=e.target.checked;saveS()};
 applyI18n();
 refreshCosts();(async()=>{P=await(await api('/api/personas')).json();renderThreads();select(P[0])})();

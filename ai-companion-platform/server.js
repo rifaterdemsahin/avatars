@@ -158,12 +158,26 @@ const json = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'applic
 const readBody = req => new Promise(ok => { let b = ''; req.on('data', c => b += c); req.on('end', () => ok(b ? JSON.parse(b) : {})); });
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.mp3': 'audio/mpeg', '.mp4': 'video/mp4' };
 
+// Model choice with the reason, shown in the right-hand panel. Reasons come from tests run on 2026-11-11.
+function chooseModel(p, lang, picked) {
+  const tr = (p.speaks || lang) === 'tr', price = id => PRICE[id]?.output?.usd;
+  if (UNCENSORED.includes(picked)) return { model: picked, auto: false, price: price(picked),
+    reason_en: `You picked ${picked} in Settings, so Auto is off.`, reason_tr: `Ayarlar'dan ${picked} modelini seçtiniz, bu yüzden Otomatik kapalı.` };
+  if (tr) return { model: CHAT_MODEL_TR, auto: true, price: price(CHAT_MODEL_TR),
+    reason_en: `Auto: ${p.name} speaks Turkish, so ${CHAT_MODEL_TR} is used. In my tests venice-uncensored-role-play produced broken Turkish (invented words, stray Arabic) and venice-uncensored-1-2 was weak, while ${CHAT_MODEL_TR} and deepseek-v4-1-flash-uncensored were fluent. Gemma is the cheaper of the two ($0.50 vs $1.32 per 1M output tokens). All are uncensored models.`,
+    reason_tr: `Otomatik: ${p.name} Türkçe konuştuğu için ${CHAT_MODEL_TR} kullanılıyor. Testlerimde venice-uncensored-role-play bozuk Türkçe üretti (uydurma kelimeler, Arapça harfler), venice-uncensored-1-2 zayıftı; ${CHAT_MODEL_TR} ve deepseek-v4-1-flash-uncensored akıcıydı. Gemma ikisinden daha ucuz (1M çıktı token: $0,50 - $1,32). Hepsi sansürsüz modeller.` };
+  return { model: CHAT_MODEL, auto: true, price: price(CHAT_MODEL),
+    reason_en: `Auto: English chat uses ${CHAT_MODEL}, the uncensored model Venice tunes for role-play, as you asked. I did not benchmark other models for English, only Turkish. You can switch in Settings.`,
+    reason_tr: `Otomatik: İngilizce sohbet için ${CHAT_MODEL} kullanılıyor; Venice'in rol yapma için ayarladığı sansürsüz model, istediğiniz gibi. İngilizce için diğer modelleri karşılaştırmadım, yalnızca Türkçeyi test ettim. Ayarlar'dan değiştirebilirsiniz.` };
+}
+
 const handle = async (req, res) => {
   const url = new URL(req.url, 'http://x'); let m;
   try {
     if (url.pathname === '/api/pay-config') { // PAYMENT_URL e.g. https://paypal.me/yourname or a Stripe payment link
       return json(res, 200, { url: process.env.PAYMENT_URL || null, payee: process.env.PAYEE || null });
     }
+    if (url.pathname === '/api/model-choice') { const p = P[url.searchParams.get('persona')]; return p ? json(res, 200, chooseModel(p, url.searchParams.get('lang') || 'en', url.searchParams.get('model') || '')) : json(res, 404, { error: 'unknown persona' }); }
     if (url.pathname === '/api/models') return json(res, 200, UNCENSORED.map(id => ({ id, out: PRICE[id]?.output?.usd ?? null })));
     if (url.pathname === '/api/costs') { // running totals for the UI
       if (balance == null) { const d = ((await (await fetch('https://api.venice.ai/api/v1/api_keys/rate_limits', { headers: { Authorization: 'Bearer ' + KEY } })).json()).data) || {}; balance = d.balances?.USD ?? null; }
@@ -217,13 +231,13 @@ const handle = async (req, res) => {
       const msgs = [{ role: 'system', content: systemPrompt(p, id, text, p.speaks || lang, emoji !== false) },
         ...history(id).filter(x => x.kind === 'text').map(x => ({ role: x.role === 'user' ? 'user' : 'assistant', content: x.content }))];
       if ((p.speaks || lang) === 'tr') { msgs.at(-1).content += '\n\n[Rol gereği yalnızca Türkçe yanıt ver. Reply ONLY in Turkish.]'; msgs.push({ role: 'system', content: 'Sadece Türkçe yaz. Your next reply must be entirely in Turkish.' }); } // history in English would otherwise pull replies to English
-      const out = await (await venice('/chat/completions', { model: UNCENSORED.includes(model) ? model : (p.speaks || lang) === 'tr' ? CHAT_MODEL_TR : CHAT_MODEL, messages: msgs, temperature: 0.9, max_tokens: 300 })).json();
+      const out = await (await venice('/chat/completions', { model: chooseModel(p, lang, model).model, messages: msgs, temperature: 0.9, max_tokens: 300 })).json();
       const reply = out.choices[0].message.content.trim();
       const cost = reqCost();
       save(id, 'assistant', 'text', reply, cost.usd);
       queueScene(id);
       if (db.prepare("SELECT COUNT(*) c FROM messages WHERE persona=? AND role='user'").get(id).c % 4 === 0) extract(id);
-      return json(res, 200, { reply, ts: Date.now(), cost, balance });
+      return json(res, 200, { reply, ts: Date.now(), cost, balance, choice: chooseModel(p, lang, model) });
     }
     if ((m = url.pathname.match(/^\/api\/image\/(\w+)$/))) {
       const id = m[1], p = P[id]; if (!p) return json(res, 404, { error: 'unknown persona' });
