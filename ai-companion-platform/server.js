@@ -13,7 +13,9 @@ for (const l of fs.existsSync(path.join(root, '.env')) ? fs.readFileSync(path.jo
 const KEY = process.env.VENICE_API_KEY;
 const PORT = +process.env.PORT || 3100;
 const CHAT_MODEL = process.env.CHAT_MODEL || 'venice-uncensored-role-play';
-const CHAT_MODEL_TR = process.env.CHAT_MODEL_TR || 'zai-org-glm-5-1'; // roleplay model is weak in Turkish
+const CHAT_MODEL_TR = process.env.CHAT_MODEL_TR || 'gemma-4-uncensored'; // role-play model garbles Turkish
+// Uncensored text models the user can pick in Settings (validated server-side).
+const UNCENSORED = ['venice-uncensored-role-play', 'gemma-4-uncensored', 'venice-uncensored-1-2', 'deepseek-v4-1-flash-uncensored', 'olafangensan-glm-4.7-flash-heretic'];
 const IMAGE_MODEL = process.env.IMAGE_MODEL || 'venice-sd35';
 const VIDEO_MODEL = process.env.VIDEO_MODEL || 'seedance-2-0-fast-text-to-video-basic';
 const TTS_MODEL_TR = process.env.TTS_MODEL_TR || 'tts-elevenlabs-turbo-v2-5';
@@ -162,6 +164,7 @@ const handle = async (req, res) => {
     if (url.pathname === '/api/pay-config') { // PAYMENT_URL e.g. https://paypal.me/yourname or a Stripe payment link
       return json(res, 200, { url: process.env.PAYMENT_URL || null, payee: process.env.PAYEE || null });
     }
+    if (url.pathname === '/api/models') return json(res, 200, UNCENSORED.map(id => ({ id, out: PRICE[id]?.output?.usd ?? null })));
     if (url.pathname === '/api/costs') { // running totals for the UI
       if (balance == null) { const d = ((await (await fetch('https://api.venice.ai/api/v1/api_keys/rate_limits', { headers: { Authorization: 'Bearer ' + KEY } })).json()).data) || {}; balance = d.balances?.USD ?? null; }
       const day = new Date(); day.setHours(0, 0, 0, 0);
@@ -207,14 +210,14 @@ const handle = async (req, res) => {
     if ((m = url.pathname.match(/^\/api\/chat\/(\w+)$/))) {
       const id = m[1], p = P[id]; if (!p) return json(res, 404, { error: 'unknown persona' });
       if (req.method === 'GET') return json(res, 200, { messages: db.prepare('SELECT role,kind,content,ts,cost FROM messages WHERE persona=? ORDER BY id').all(id), state: getState(id) });
-      const { text, lang, emoji } = await readBody(req);
+      const { text, lang, emoji, model } = await readBody(req);
       await sceneQ[id];
       save(id, 'user', 'text', text);
       await queueScene(id);
       const msgs = [{ role: 'system', content: systemPrompt(p, id, text, p.speaks || lang, emoji !== false) },
         ...history(id).filter(x => x.kind === 'text').map(x => ({ role: x.role === 'user' ? 'user' : 'assistant', content: x.content }))];
       if ((p.speaks || lang) === 'tr') { msgs.at(-1).content += '\n\n[Rol gereği yalnızca Türkçe yanıt ver. Reply ONLY in Turkish.]'; msgs.push({ role: 'system', content: 'Sadece Türkçe yaz. Your next reply must be entirely in Turkish.' }); } // history in English would otherwise pull replies to English
-      const out = await (await venice('/chat/completions', { model: (p.speaks || lang) === 'tr' ? CHAT_MODEL_TR : CHAT_MODEL, messages: msgs, temperature: 0.9, max_tokens: 300 })).json();
+      const out = await (await venice('/chat/completions', { model: UNCENSORED.includes(model) ? model : (p.speaks || lang) === 'tr' ? CHAT_MODEL_TR : CHAT_MODEL, messages: msgs, temperature: 0.9, max_tokens: 300 })).json();
       const reply = out.choices[0].message.content.trim();
       const cost = reqCost();
       save(id, 'assistant', 'text', reply, cost.usd);
