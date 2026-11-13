@@ -154,6 +154,18 @@ function scenePrompt(id) {
   return { prompt: prompt.slice(0, 1400), negative_prompt: neg.join(', '), seed };
 }
 
+// Optional user description for "Show me the scene": merged with the scene state into one English prompt; the user's words win.
+async function withNote(id, sp, note) {
+  const p = P[id];
+  try {
+    const r = await (await venice('/chat/completions', { model: CHAT_MODEL, temperature: 0.3, max_tokens: 300,
+      messages: [{ role: 'user', content: `Write ONE English image-generation prompt (max 800 characters, no preamble, no quotes).\nBase scene: ${sp.prompt}\nUser's request (it overrides any conflicting scene detail; translate it to English if needed): ${note}\nKeep the character's look: ${p.visual.appearance}. Tasteful and fully clothed.` }] })).json();
+    const prompt = r.choices[0].message.content.trim().replace(/^["']|["']$/g, '').slice(0, 1200);
+    const seed = (sp.seed + [...note].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7)) % 999999999;
+    return { prompt, negative_prompt: 'deformed, extra limbs, text, watermark', seed };
+  } catch (e) { console.warn('note merge failed:', e.message); return { ...sp, prompt: `${note}. ${sp.prompt}`.slice(0, 1400) }; }
+}
+
 const jobs = {};
 const json = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
 const readBody = req => new Promise(ok => { let b = ''; req.on('data', c => b += c); req.on('end', () => ok(b ? JSON.parse(b) : {})); });
@@ -244,8 +256,10 @@ const handle = async (req, res) => {
     if ((m = url.pathname.match(/^\/api\/image\/(\w+)$/))) {
       const id = m[1], p = P[id]; if (!p) return json(res, 404, { error: 'unknown persona' });
       await sceneQ[id];
-      const sp = scenePrompt(id);
-      log(`[image ${id}] model=${IMAGE_MODEL} seed=${sp.seed} prompt="${sp.prompt}" negative="${sp.negative_prompt}"`);
+      const note = String((await readBody(req)).note || '').trim().slice(0, 300);
+      let sp = scenePrompt(id);
+      if (note) { sp = await withNote(id, sp, note); save(id, 'system', 'note', 'Image request: ' + note); }
+      log(`[image ${id}] note="${note}" model=${IMAGE_MODEL} seed=${sp.seed} prompt="${sp.prompt}" negative="${sp.negative_prompt}"`);
       const r = await (await venice('/image/generate', { model: IMAGE_MODEL, prompt: sp.prompt, negative_prompt: sp.negative_prompt, seed: sp.seed, width: 1024, height: 640, format: 'png', safe_mode: true, return_binary: false })).json();
       const file = `${id}-${Date.now()}.png`;
       fs.writeFileSync(path.join(root, 'data/assets', file), Buffer.from(r.images[0], 'base64'));
@@ -256,8 +270,10 @@ const handle = async (req, res) => {
     if ((m = url.pathname.match(/^\/api\/video\/(\w+)$/))) {
       const id = m[1], p = P[id]; if (!p) return json(res, 404, { error: 'unknown persona' });
       await sceneQ[id];
-      const sp = scenePrompt(id);
-      log(`[video ${id}] model=${VIDEO_MODEL} prompt="${sp.prompt}" negative="${sp.negative_prompt}"`);
+      const note = String((await readBody(req)).note || '').trim().slice(0, 300);
+      let sp = scenePrompt(id);
+      if (note) { sp = await withNote(id, sp, note); save(id, 'system', 'note', 'Image request: ' + note); }
+      log(`[video ${id}] note="${note}" model=${VIDEO_MODEL} prompt="${sp.prompt}" negative="${sp.negative_prompt}"`);
       const q = await (await venice('/video/queue', { model: VIDEO_MODEL, prompt: sp.prompt, negative_prompt: sp.negative_prompt, duration: '4s', resolution: '480p', aspect_ratio: '16:9', audio: false })).json();
       for (let i = 0; i < 90; i++) {
         await new Promise(r => setTimeout(r, 4000));
