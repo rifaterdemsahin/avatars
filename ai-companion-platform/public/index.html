@@ -119,7 +119,13 @@ pre{margin:0;font-family:var(--font-m);font-size:12.5px;line-height:1.6;backgrou
 #lb button{position:absolute;background:rgba(255,255,255,.14);color:#fff;border:0;border-radius:999px;width:42px;height:42px;font-size:20px;cursor:pointer}
 #lb button:hover{background:rgba(255,255,255,.28)}
 #lb .x{top:max(14px,env(safe-area-inset-top));right:16px}#lb .p{left:14px;top:50%}#lb .n{right:14px;top:50%}
-[hidden]{display:none!important}</style></head><body><div class="wrap"><div class="app" id="app">
+[hidden]{display:none!important}#fx{position:fixed;inset:0;z-index:60;background:rgba(8,9,14,.7);display:flex;align-items:center;justify-content:center;padding:16px}
+#fx .box{background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:14px;width:min(680px,100%);max-height:92vh;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:12px}
+#fx h2{margin:0;font:700 18px 'Space Grotesk',sans-serif}#fx label{font:500 11px 'JetBrains Mono',monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:4px}
+#fx textarea,#fx input{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface2);color:var(--fg);font:inherit;font-size:13px}
+#fx .ro{font-size:13px;background:var(--surface2);border-radius:8px;padding:8px 10px;white-space:pre-wrap}#fx ul{margin:0;padding-left:18px;font-size:13px;color:var(--muted)}
+#fx .foot{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;align-items:center}#fx .est{margin-right:auto;font:11px 'JetBrains Mono',monospace;color:var(--muted)}
+</style></head><body><div class="wrap"><div class="app" id="app">
     <div class="pane">
       <div class="pane-h"><span data-i="conversations">Conversations</span><span id="count">3</span></div>
       <input class="search" id="q" type="search" placeholder="Search contacts" data-ph="search">
@@ -157,9 +163,21 @@ pre{margin:0;font-family:var(--font-m);font-size:12.5px;line-height:1.6;backgrou
         <div><h3 data-i="modelWhy">Model</h3><div id="mname" style="font-family:var(--font-m);font-size:12px;color:var(--accent);word-break:break-all"></div><div id="mwhy" style="font-size:12px;color:var(--muted);margin-top:4px"></div></div>
       </div>
     </div>
-  </div></div><div id="lb" hidden role="dialog" aria-modal="true" aria-label="Image viewer"><button class="x" type="button" aria-label="Close">✕</button><button class="p" type="button" aria-label="Previous">‹</button><img id="lbi" alt=""><button class="n" type="button" aria-label="Next">›</button></div><script>
-const T={en:{imgNote:'Describe the image (optional)',modelWhy:'Model in use and why',model:'Model',balance:'Balance',today:'Spent today',calls:'calls',noCredit:'Venice credit has run out. Add credit to continue.',topup:'Add credit',edit:'Edit',save:'Save',reset:'Reset to default',cancel:'Cancel',scSaved:'Scenario updated',settings:'Settings',language:'Language',emojis:'Emojis 😊',pay:'Payment request',bal:'Balance',conversations:'Conversations',persona:'Persona',context:'Context',call:'Call',img:'Show me the scene: Image',vid:'Show me the scene: Video',send:'Send',premise:'Premise',attrs:'Attributes',tags:'Personality',search:'Search contacts',msg:'Write a message',play:'Play voice',gen:'Generating...',aL:['Age','Build','Profession','Dialect'],eReply:'Reply failed: ',eImg:'Generation failed: ',eVoice:'Voice failed: ',call2:'Voice calls (WebRTC) arrive in phase 3.'},
-tr:{imgNote:'Görseli tarif et (isteğe bağlı)',modelWhy:'Kullanılan model ve nedeni',model:'Model',balance:'Bakiye',today:'Bugünkü masraf',calls:'istek',noCredit:'Venice kredisi bitti. Devam etmek için bakiye yükleyin.',topup:'Bakiye yükle',edit:'Düzenle',save:'Kaydet',reset:'Varsayılana dön',cancel:'İptal',scSaved:'Senaryo güncellendi',settings:'Ayarlar',language:'Dil',emojis:'Emojiler 😊',pay:'Ödeme talebi',bal:'Bakiye',conversations:'Sohbetler',persona:'Karakter',context:'Bağlam',call:'Ara',img:'Sahneyi göster: Görsel',vid:'Sahneyi göster: Video',send:'Gönder',premise:'Senaryo',attrs:'Özellikler',tags:'Kişilik',search:'Kişi ara',msg:'Bir mesaj yaz',play:'Sesi çal',gen:'Üretiliyor...',aL:['Yaş','Yapı','Meslek','Şive'],eReply:'Yanıt alınamadı: ',eImg:'Üretim başarısız: ',eVoice:'Ses başarısız: ',call2:'Sesli aramalar (WebRTC) 3. aşamada gelecek.'}};
+  </div></div><div id="fx" hidden role="dialog" aria-modal="true" aria-labelledby="fxT"><div class="box">
+<h2 id="fxT" data-i="fxTitle">Review the prompt</h2>
+<div id="fxBusy" class="note" hidden data-i="fxBusy">Fixing the prompt with your story...</div>
+<div id="fxBody" style="display:flex;flex-direction:column;gap:12px">
+<div><label data-i="fxReq">Your request</label><div class="ro" id="fxReqT"></div></div>
+<div><label data-i="fxCtx">Story context used</label><div class="ro" id="fxCtxT"></div></div>
+<div><label data-i="fxFixed">Fixed prompt (editable)</label><textarea id="fxPrompt" rows="6" maxlength="1400"></textarea></div>
+<div><label data-i="fxNeg">Negative prompt</label><input id="fxNeg" type="text" maxlength="600"></div>
+<div><label data-i="fxChanges">What was fixed</label><ul id="fxCh"></ul></div>
+</div>
+<div class="foot"><span class="est" id="fxEst"></span><button class="btn" type="button" id="fxRe" data-i="fxRe">Fix again</button><button class="btn" type="button" id="fxCancel" data-i="cancel">Cancel</button><button class="btn primary" type="button" id="fxGo" data-i="fxGo">Generate</button></div>
+</div></div>
+<div id="lb" hidden role="dialog" aria-modal="true" aria-label="Image viewer"><button class="x" type="button" aria-label="Close">✕</button><button class="p" type="button" aria-label="Previous">‹</button><img id="lbi" alt=""><button class="n" type="button" aria-label="Next">›</button></div><script>
+const T={en:{fxTitle:'Review the prompt',fxBusy:'Fixing the prompt with your story...',fxReq:'Your request',fxCtx:'Story context used',fxFixed:'Fixed prompt (editable)',fxNeg:'Negative prompt',fxChanges:'What was fixed',fxRe:'Fix again',fxGo:'Generate',fxNone:'(empty: using the latest story moment)',fxEstImg:'Generation ~',fxEstVid:'Video cost is billed on completion',fxFixCost:'Fixer',imgNote:'Describe the image (optional)',modelWhy:'Model in use and why',model:'Model',balance:'Balance',today:'Spent today',calls:'calls',noCredit:'Venice credit has run out. Add credit to continue.',topup:'Add credit',edit:'Edit',save:'Save',reset:'Reset to default',cancel:'Cancel',scSaved:'Scenario updated',settings:'Settings',language:'Language',emojis:'Emojis 😊',pay:'Payment request',bal:'Balance',conversations:'Conversations',persona:'Persona',context:'Context',call:'Call',img:'Show me the scene: Image',vid:'Show me the scene: Video',send:'Send',premise:'Premise',attrs:'Attributes',tags:'Personality',search:'Search contacts',msg:'Write a message',play:'Play voice',gen:'Generating...',aL:['Age','Build','Profession','Dialect'],eReply:'Reply failed: ',eImg:'Generation failed: ',eVoice:'Voice failed: ',call2:'Voice calls (WebRTC) arrive in phase 3.'},
+tr:{fxTitle:'Promptu gözden geçir',fxBusy:'Prompt hikayene göre düzeltiliyor...',fxReq:'İsteğin',fxCtx:'Kullanılan hikaye bağlamı',fxFixed:'Düzeltilmiş prompt (düzenlenebilir)',fxNeg:'Negatif prompt',fxChanges:'Ne düzeltildi',fxRe:'Tekrar düzelt',fxGo:'Üret',fxNone:'(boş: hikayenin son anı kullanılıyor)',fxEstImg:'Üretim ~',fxEstVid:'Video maliyeti tamamlanınca yansır',fxFixCost:'Düzeltici',imgNote:'Görseli tarif et (isteğe bağlı)',modelWhy:'Kullanılan model ve nedeni',model:'Model',balance:'Bakiye',today:'Bugünkü masraf',calls:'istek',noCredit:'Venice kredisi bitti. Devam etmek için bakiye yükleyin.',topup:'Bakiye yükle',edit:'Düzenle',save:'Kaydet',reset:'Varsayılana dön',cancel:'İptal',scSaved:'Senaryo güncellendi',settings:'Ayarlar',language:'Dil',emojis:'Emojiler 😊',pay:'Ödeme talebi',bal:'Bakiye',conversations:'Sohbetler',persona:'Karakter',context:'Bağlam',call:'Ara',img:'Sahneyi göster: Görsel',vid:'Sahneyi göster: Video',send:'Gönder',premise:'Senaryo',attrs:'Özellikler',tags:'Kişilik',search:'Kişi ara',msg:'Bir mesaj yaz',play:'Sesi çal',gen:'Üretiliyor...',aL:['Yaş','Yapı','Meslek','Şive'],eReply:'Yanıt alınamadı: ',eImg:'Üretim başarısız: ',eVoice:'Ses başarısız: ',call2:'Sesli aramalar (WebRTC) 3. aşamada gelecek.'}};
 let S={lang:'en',emoji:true,model:''};try{Object.assign(S,JSON.parse(localStorage.getItem('settings')||'{}'));if(S.v!==2){S.model='';S.v=2;saveS()}}catch(e){}
 const t=k=>T[S.lang][k];
 const pv=(p,k)=>S.lang==='tr'&&p[k+'_tr']?p[k+'_tr']:p[k];
@@ -206,10 +224,31 @@ $('form').onsubmit=async e=>{e.preventDefault();const v=$('msg').value.trim();if
   addMsg({role:'user',kind:'text',content:v,ts:Date.now()});
   try{const r=await(await post('/api/chat/'+cur.id,{text:v,lang:S.lang,emoji:S.emoji,model:S.model})).json();addMsg({role:'assistant',kind:'text',content:r.reply,ts:r.ts,cost:r.cost.usd,model:r.model});refreshCosts();showModel(r.choice);cur.last={content:r.reply,ts:r.ts};renderThreads()}
   catch(err){note(t('eReply')+err.message)}busy=false;focusMsg()};
-document.querySelectorAll('.chip').forEach(c=>c.onclick=async()=>{
+// Prompt fixer: every Image/Video click first rewrites the request with the story, shows it in a modal, and generates only after approval.
+let FX={kind:'image',data:null};
+function fxOpen(kind){FX.kind=kind;$('fx').hidden=false;applyI18n();fxLoad()}
+async function fxLoad(){$('fxBusy').hidden=false;$('fxBody').hidden=true;$('fxGo').disabled=$('fxRe').disabled=true;
+  try{const r=await(await post('/api/prompt-fix/'+cur.id,{note:$('imgNote').value.trim(),kind:FX.kind,lang:S.lang})).json();FX.data=r;
+    const sc=r.context.scene;$('fxReqT').textContent=r.original||t('fxNone');
+    $('fxCtxT').textContent=[sc.location,sc.lighting,sc.time_of_day,sc.weather].filter(Boolean).join(' · ')+(r.context.turns.length?'\n\n'+r.context.turns.join('\n'):'');
+    $('fxPrompt').value=r.prompt;$('fxNeg').value=r.negative_prompt;
+    $('fxCh').innerHTML=(r.changes.length?r.changes:['-']).map(x=>`<li>${esc(String(x))}</li>`).join('');
+    $('fxEst').textContent=r.model+' · '+(FX.kind==='video'?t('fxEstVid'):t('fxEstImg')+'$0.01')+' · '+t('fxFixCost')+' '+usd(r.cost.usd);
+    $('fxBody').hidden=false;$('fxGo').disabled=$('fxRe').disabled=false;refreshCosts();$('fxPrompt').focus()}
+  catch(err){fxClose();note(t('eImg')+err.message)}
+  $('fxBusy').hidden=true}
+function fxClose(){$('fx').hidden=true;focusMsg()}
+async function runGen(kind,payload){const c=document.querySelector('.chip[data-q='+kind+']');
   if(busy)return;busy=true;c.disabled=true;const old=c.textContent;c.textContent=t('gen');
-  try{const isV=c.dataset.q==='video';const nt=$('imgNote').value.trim();if(nt)addMsg({role:'system',kind:'note',content:(S.lang==='tr'?'Görsel isteği: ':'Image request: ')+nt});const r=await(await post('/api/'+(isV?'video/':'image/')+cur.id,{note:$('imgNote').value.trim()})).json();addMsg({role:'assistant',kind:isV?'video':'image',content:r.url,cost:r.cost.usd,model:r.model});$('imgNote').value='';refreshCosts();if(!isV)$('gallery').insertAdjacentHTML('afterbegin',`<img src="${r.url}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px" alt="">`)}
-  catch(err){note(t('eImg')+err.message)}applyI18n();c.disabled=false;busy=false;focusMsg()});
+  try{const isV=kind==='video';const r=await(await post('/api/'+(isV?'video/':'image/')+cur.id,payload)).json();
+    addMsg({role:'assistant',kind:isV?'video':'image',content:r.url,cost:r.cost.usd,model:r.model});$('imgNote').value='';refreshCosts();
+    if(!isV)$('gallery').insertAdjacentHTML('afterbegin',`<img src="${r.url}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px" alt="">`)}
+  catch(err){note(t('eImg')+err.message)}applyI18n();c.disabled=false;busy=false;focusMsg()}
+document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{if(!busy)fxOpen(c.dataset.q)});
+$('fxCancel').onclick=fxClose;$('fxRe').onclick=fxLoad;
+$('fxGo').onclick=()=>{const kind=FX.kind,payload={note:$('imgNote').value.trim(),prompt:$('fxPrompt').value.trim(),negative_prompt:$('fxNeg').value.trim()};if(!payload.prompt)return;fxClose();runGen(kind,payload)};
+$('fx').addEventListener('click',e=>{if(e.target.id==='fx')fxClose()});
+document.addEventListener('keydown',e=>{if(!$('fx').hidden&&e.key==='Escape')fxClose()});
 $('stream').addEventListener('click',async e=>{const b=e.target;if(b.dataset.play===undefined)return;
   const text=b.closest('.msg').firstChild.textContent;b.textContent='Loading...';
   try{const r=await post('/api/tts/'+cur.id,{text,lang:S.lang});const c=parseFloat(r.headers.get('X-Cost-USD'));if(c>=0)b.insertAdjacentHTML('afterend',` <span class="ts">${usd(c)}</span>`);refreshCosts();const a=new Audio(URL.createObjectURL(await r.blob()));a.onended=()=>b.textContent=t('play');await a.play();b.textContent='Playing'}

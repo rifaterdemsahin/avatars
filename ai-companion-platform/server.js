@@ -166,6 +166,21 @@ async function withNote(id, sp, note) {
   } catch (e) { console.warn('note merge failed:', e.message); return { ...sp, prompt: `${note}. ${sp.prompt}`.slice(0, 1400) }; }
 }
 
+// Prompt fixer: before generating, rewrite the request using the storyline, scene state and persona look. Shown to the user in a modal.
+const hashStr = t => [...t].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+async function fixPrompt(id, note, kind, lang) {
+  const p = P[id], st = getState(id), sc = st.scene, sp = scenePrompt(id);
+  const turns = history(id).filter(m => m.kind === 'text').slice(-6).map(m => `${m.role === 'user' ? 'User' : p.name}: ${m.content}`).join('\n');
+  const ask = `You are a prompt fixer for an ${kind} generator in an interactive story. Rewrite the request into ONE strong English ${kind} prompt that matches the storyline.\n\nStory so far (latest turns):\n${turns || '(no messages yet)'}\n\nScenario: ${scenarioOf(id)}\nCurrent scene: ${JSON.stringify(sc)}\nCharacter look (keep identical): ${p.name}, ${p.visual.appearance}\nUser's request (may be empty, may be Turkish; if empty, depict the latest story moment): ${note || '(none)'}\n\nRules: keep continuity with location, lighting, time, weather and props from the story; the user's request wins on conflicts; describe subject, setting, lighting, camera framing and mood; tasteful and fully clothed; max 800 characters; no names of real people.\nReturn ONLY JSON: {"prompt": string, "negative_prompt": string, "changes": [up to 4 short strings in ${lang === 'tr' ? 'Turkish' : 'English'} saying what you fixed or added]}`;
+  const r = await (await venice('/chat/completions', { model: lang === 'tr' ? CHAT_MODEL_TR : CHAT_MODEL, temperature: 0.4, max_tokens: 500, messages: [{ role: 'user', content: ask }] })).json();
+  let j; try { j = JSON.parse(r.choices[0].message.content.match(/\{[\s\S]*\}/)[0]); } catch { j = { prompt: `${note ? note + '. ' : ''}${sp.prompt}`, negative_prompt: sp.negative_prompt, changes: [] }; }
+  const base = ['deformed', 'extra limbs', 'text', 'watermark'];
+  const dark = /dark|dim|candle|night|gloom|low light/i.test(sc.lighting + ' ' + sc.time_of_day) && !/daylight|sunny|bright/i.test(note || '');
+  const neg = [...new Set([...base, ...String(j.negative_prompt || '').split(',').map(x => x.trim()).filter(Boolean), ...(dark ? ['daylight', 'sunlight', 'bright window', 'golden hour', 'overexposed'] : [])])].join(', ');
+  return { original: note, prompt: String(j.prompt).slice(0, 1400), negative_prompt: neg, changes: j.changes || [],
+    context: { scene: sc, turns: turns.split('\n').slice(-3) }, model: kind === 'video' ? VIDEO_MODEL : IMAGE_MODEL };
+}
+
 const jobs = {};
 const json = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
 const readBody = req => new Promise(ok => { let b = ''; req.on('data', c => b += c); req.on('end', () => ok(b ? JSON.parse(b) : {})); });
@@ -253,12 +268,24 @@ const handle = async (req, res) => {
       if (db.prepare("SELECT COUNT(*) c FROM messages WHERE persona=? AND role='user'").get(id).c % 4 === 0) extract(id);
       return json(res, 200, { reply, ts: Date.now(), cost, balance, choice, model: choice.model });
     }
+    if ((m = url.pathname.match(/^\/api\/prompt-fix\/(\w+)$/)) && req.method === 'POST') {
+      const id = m[1]; if (!P[id]) return json(res, 404, { error: 'unknown persona' });
+      const { note, kind, lang } = await readBody(req);
+      await sceneQ[id];
+      const fx = await fixPrompt(id, String(note || '').trim().slice(0, 300), kind === 'video' ? 'video' : 'image', lang);
+      log(`[prompt-fix ${id}] request="${note || ''}" fixed="${fx.prompt}" negative="${fx.negative_prompt}"`);
+      return json(res, 200, { ...fx, cost: reqCost(), balance });
+    }
     if ((m = url.pathname.match(/^\/api\/image\/(\w+)$/))) {
       const id = m[1], p = P[id]; if (!p) return json(res, 404, { error: 'unknown persona' });
       await sceneQ[id];
-      const note = String((await readBody(req)).note || '').trim().slice(0, 300);
+      const body = await readBody(req), note = String(body.note || '').trim().slice(0, 300);
       let sp = scenePrompt(id);
-      if (note) { sp = await withNote(id, sp, note); save(id, 'system', 'note', 'Image request: ' + note); }
+      if (body.prompt) { // already fixed and approved by the user in the modal
+        const pr = String(body.prompt).slice(0, 1400);
+        sp = { prompt: pr, negative_prompt: String(body.negative_prompt || '').slice(0, 600), seed: (P[id].visual.seed + hashStr(pr)) % 999999999 };
+        save(id, 'system', 'note', 'Approved prompt: ' + pr);
+      } else if (note) { sp = await withNote(id, sp, note); save(id, 'system', 'note', 'Image request: ' + note); }
       log(`[image ${id}] note="${note}" model=${IMAGE_MODEL} seed=${sp.seed} prompt="${sp.prompt}" negative="${sp.negative_prompt}"`);
       const r = await (await venice('/image/generate', { model: IMAGE_MODEL, prompt: sp.prompt, negative_prompt: sp.negative_prompt, seed: sp.seed, width: 1024, height: 640, format: 'png', safe_mode: true, return_binary: false })).json();
       const file = `${id}-${Date.now()}.png`;
@@ -270,9 +297,13 @@ const handle = async (req, res) => {
     if ((m = url.pathname.match(/^\/api\/video\/(\w+)$/))) {
       const id = m[1], p = P[id]; if (!p) return json(res, 404, { error: 'unknown persona' });
       await sceneQ[id];
-      const note = String((await readBody(req)).note || '').trim().slice(0, 300);
+      const body = await readBody(req), note = String(body.note || '').trim().slice(0, 300);
       let sp = scenePrompt(id);
-      if (note) { sp = await withNote(id, sp, note); save(id, 'system', 'note', 'Image request: ' + note); }
+      if (body.prompt) { // already fixed and approved by the user in the modal
+        const pr = String(body.prompt).slice(0, 1400);
+        sp = { prompt: pr, negative_prompt: String(body.negative_prompt || '').slice(0, 600), seed: (P[id].visual.seed + hashStr(pr)) % 999999999 };
+        save(id, 'system', 'note', 'Approved prompt: ' + pr);
+      } else if (note) { sp = await withNote(id, sp, note); save(id, 'system', 'note', 'Image request: ' + note); }
       log(`[video ${id}] note="${note}" model=${VIDEO_MODEL} prompt="${sp.prompt}" negative="${sp.negative_prompt}"`);
       const q = await (await venice('/video/queue', { model: VIDEO_MODEL, prompt: sp.prompt, negative_prompt: sp.negative_prompt, duration: '4s', resolution: '480p', aspect_ratio: '16:9', audio: false })).json();
       for (let i = 0; i < 90; i++) {
